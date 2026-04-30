@@ -21,12 +21,12 @@ const STATUS_MURID = {
 const GRED_LIST = ['DG29','DG32','DG34','DG38','DG41','DG44','DG48','DG52','DG54']
 
 const DEFAULT_KELAS = {
-  '1': ['1 Arif', '1 Bestari', '1 Cerdas', '1 Dinamik', '1 Efisyen'],
-  '2': ['2 Arif', '2 Bestari', '2 Cerdas', '2 Dinamik', '2 Efisyen'],
-  '3': ['3 Arif', '3 Bestari', '3 Cerdas', '3 Dinamik', '3 Efisyen'],
-  '4': ['4 Arif', '4 Bestari', '4 Cerdas', '4 Dinamik', '4 Efisyen'],
-  '5': ['5 Arif', '5 Bestari', '5 Cerdas', '5 Dinamik', '5 Efisyen'],
-  '6': ['6 Arif', '6 Bestari', '6 Cerdas', '6 Dinamik', '6 Efisyen'],
+  '1': ['1 Unik', '1 Aplikasi', '1 Revolusi', '1 Aspirasi', '1 Dedikasi'],
+  '2': ['2 Unik', '2 Aplikasi', '2 Revolusi', '2 Aspirasi', '2 Dedikasi'],
+  '3': ['3 Unik', '3 Aplikasi', '3 Revolusi', '3 Aspirasi', '3 Dedikasi'],
+  '4': ['4 Unik', '4 Aplikasi', '4 Revolusi', '4 Aspirasi', '4 Dedikasi'],
+  '5': ['5 Unik', '5 Aplikasi', '5 Revolusi', '5 Aspirasi', '5 Dedikasi'],
+  '6': ['6 Unik', '6 Aplikasi', '6 Revolusi', '6 Aspirasi', '6 Dedikasi'],
 }
 
 const generatePassword = () => {
