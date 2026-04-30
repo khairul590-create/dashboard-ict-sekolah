@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import SectionHeader from '../components/SectionHeader'
@@ -24,7 +25,17 @@ const STATUS_SERVIS = {
   siap:         { bg: 'bg-emerald-100',text: 'text-emerald-700',label: 'Siap',         dot: 'bg-emerald-400' },
 }
 
+const LOG_ICONS = {
+  tambah_barang:     '📦',
+  padam_barang:      '🗑️',
+  import_excel:      '📥',
+  tambah_peminjaman: '📝',
+  pulang_barang:     '✅',
+  edit_barang:       '✏️',
+}
+
 const TODAY = new Date().toISOString().slice(0, 10)
+const KATEGORI_LIST = ['Laptop','Projektor','Tablet','Kamera','Audio','Lain']
 
 function getKategoriIcon(nama) {
   const found = Object.entries(KATEGORI_ICON).find(([k]) =>
@@ -33,24 +44,32 @@ function getKategoriIcon(nama) {
   return found ? found[1] : '📦'
 }
 
-const KATEGORI_LIST = ['Laptop','Projektor','Tablet','Kamera','Audio','Lain']
+const formatRM = n =>
+  'RM ' + (n || 0).toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function PeminjamanICT() {
   const { isAdmin } = useAdmin()
   const [tab, setTab] = useState('dashboard')
+  const [tabAdmin, setTabAdmin] = useState('peminjaman')
   const [items, setItems] = useState([])
   const [peminjaman, setPeminjaman] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('semua')
+  const [searchInv, setSearchInv] = useState('')
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState(null)
+  const [log, setLog] = useState([])
+  const [importLoading, setImportLoading] = useState(false)
 
   const [form, setForm] = useState({
     peminjam: '', jawatan: '', barang: '', kod: '',
     kuantiti: 1, tarikh_pinjam: TODAY, tarikh_pulang: '', catatan: '',
   })
 
-  const [formBarang, setFormBarang] = useState({ nama: '', kod: '', kategori: 'Laptop', kuantiti: 1, no_siri: '', lokasi: '', tarikh_terima: '' })
+  const [formBarang, setFormBarang] = useState({
+    nama: '', kod: '', kategori: 'Laptop', kuantiti: 1,
+    no_siri: '', lokasi: '', tarikh_terima: '', harga_unit: '',
+  })
   const [gambarFile, setGambarFile] = useState(null)
   const [gambarPreview, setGambarPreview] = useState(null)
   const [qrModal, setQrModal] = useState(null)
@@ -58,7 +77,9 @@ export default function PeminjamanICT() {
   const BASE_URL = window.location.origin
 
   const [servis, setServis] = useState([])
-  const [formServis, setFormServis] = useState({ barang_nama: '', kod: '', masalah: '', dilaporkan_oleh: '', tarikh_lapor: TODAY, catatan: '' })
+  const [formServis, setFormServis] = useState({
+    barang_nama: '', kod: '', masalah: '', dilaporkan_oleh: '', tarikh_lapor: TODAY, catatan: '',
+  })
   const [editMode, setEditMode] = useState(false)
   const [editData, setEditData] = useState(null)
 
@@ -83,14 +104,35 @@ export default function PeminjamanICT() {
     setServis(data ?? [])
   }
 
-  useEffect(() => { fetchData(); fetchServis() }, [])
+  async function fetchLog() {
+    const { data } = await supabase.from('log_ict').select('*').order('created_at', { ascending: false }).limit(100)
+    setLog(data ?? [])
+  }
+
+  useEffect(() => { fetchData(); fetchServis(); fetchLog() }, [])
+
+  async function addLog(aksi, butiran) {
+    await supabase.from('log_ict').insert([{ aksi, butiran }])
+  }
 
   const stats = {
     totalBarang: items.length,
     sedangDipinjam: peminjaman.filter(p => p.status === 'dipinjam').length,
     lewat: peminjaman.filter(p => p.status === 'lewat').length,
     dipulangkan: peminjaman.filter(p => p.status === 'dipulangkan').length,
+    totalNilai: items.reduce((s, i) => s + (parseFloat(i.harga_unit) || 0) * i.kuantiti, 0),
   }
+
+  const filteredItems = items.filter(i => {
+    if (!searchInv) return true
+    const q = searchInv.toLowerCase()
+    return (
+      i.nama.toLowerCase().includes(q) ||
+      (i.kod || '').toLowerCase().includes(q) ||
+      (i.lokasi || '').toLowerCase().includes(q) ||
+      (i.kategori || '').toLowerCase().includes(q)
+    )
+  })
 
   function handleFormChange(e) {
     const { name, value } = e.target
@@ -103,8 +145,8 @@ export default function PeminjamanICT() {
   }
 
   async function submitPeminjaman() {
-    if (!form.peminjam || !form.barang || !form.tarikh_pinjam || !form.tarikh_pulang) {
-      showToast('Sila lengkapkan semua maklumat!', 'error'); return
+    if (!form.peminjam || !form.barang || !form.tarikh_pinjam || !form.tarikh_pulang || !form.catatan) {
+      showToast('Sila isi nama, barang, tujuan, dan tarikh pulang!', 'error'); return
     }
     const item = items.find(i => i.nama === form.barang)
     if (!item || item.tersedia < parseInt(form.kuantiti)) {
@@ -121,6 +163,7 @@ export default function PeminjamanICT() {
       .eq('id', item.id)
     if (e2) { showToast('Ralat kemaskini stok: ' + e2.message, 'error'); return }
 
+    addLog('tambah_peminjaman', `${form.peminjam} pinjam ${form.barang} (${form.kuantiti} unit)`)
     setForm({ peminjam: '', jawatan: '', barang: '', kod: '', kuantiti: 1, tarikh_pinjam: TODAY, tarikh_pulang: '', catatan: '' })
     showToast('✅ Rekod peminjaman berjaya disimpan!')
     fetchData()
@@ -128,7 +171,7 @@ export default function PeminjamanICT() {
   }
 
   async function tambahBarang() {
-    if (!formBarang.nama || !formBarang.kod) { showToast('Sila isi nama dan kod barang!', 'error'); return }
+    if (!formBarang.nama) { showToast('Sila isi nama barang!', 'error'); return }
     const qty = parseInt(formBarang.kuantiti) || 1
 
     let gambar_url = null
@@ -143,18 +186,20 @@ export default function PeminjamanICT() {
 
     const { data, error } = await supabase.from('barang_ict').insert([{
       nama: formBarang.nama,
-      kod: formBarang.kod,
+      kod: formBarang.kod || null,
       kategori: formBarang.kategori,
       kuantiti: qty,
       tersedia: qty,
       no_siri: formBarang.no_siri || null,
       lokasi: formBarang.lokasi || null,
       tarikh_terima: formBarang.tarikh_terima || null,
+      harga_unit: parseFloat(formBarang.harga_unit) || null,
       gambar_url,
     }]).select().single()
 
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
-    setFormBarang({ nama: '', kod: '', kategori: 'Laptop', kuantiti: 1, no_siri: '', lokasi: '', tarikh_terima: '' })
+    addLog('tambah_barang', `${formBarang.nama} (${formBarang.kod || 'tiada kod'}) — ${qty} unit`)
+    setFormBarang({ nama: '', kod: '', kategori: 'Laptop', kuantiti: 1, no_siri: '', lokasi: '', tarikh_terima: '', harga_unit: '' })
     setGambarFile(null)
     setGambarPreview(null)
     showToast('✅ Barang berjaya ditambah! Jana QR sekarang.')
@@ -176,7 +221,9 @@ export default function PeminjamanICT() {
   }
 
   async function deleteBarang(id) {
+    const item = items.find(i => i.id === id)
     await supabase.from('barang_ict').delete().eq('id', id)
+    addLog('padam_barang', `${item?.nama || id} dipadam`)
     showToast('🗑️ Barang dipadam!')
     fetchData()
   }
@@ -189,6 +236,7 @@ export default function PeminjamanICT() {
         .update({ tersedia: item.tersedia + rec.kuantiti })
         .eq('id', item.id)
     }
+    addLog('pulang_barang', `${rec.peminjam} pulangkan ${rec.barang}`)
     setModal(null)
     showToast('✅ Barang berjaya dipulangkan!')
     fetchData()
@@ -205,6 +253,7 @@ export default function PeminjamanICT() {
   async function editBarang(id, data) {
     const { error } = await supabase.from('barang_ict').update(data).eq('id', id)
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    addLog('edit_barang', `${data.nama || id} dikemaskini`)
     showToast('✅ Barang berjaya dikemaskini!')
     setModal(null); setEditMode(false); setEditData(null)
     fetchData()
@@ -234,6 +283,98 @@ export default function PeminjamanICT() {
     fetchServis()
   }
 
+  // ── Excel Import ──
+  async function importExcel(file) {
+    setImportLoading(true)
+    try {
+      const wb = XLSX.read(await file.arrayBuffer())
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws)
+      if (rows.length === 0) { showToast('Fail Excel kosong!', 'error'); return }
+
+      let success = 0
+      for (const row of rows) {
+        const nama = row['nama'] || row['Nama'] || row['NAMA']
+        if (!nama) continue
+        const qty = parseInt(row['kuantiti'] || row['Kuantiti'] || row['KUANTITI'] || 1)
+        const { error } = await supabase.from('barang_ict').insert([{
+          nama,
+          kod: row['kod'] || row['Kod Aset'] || row['KOD'] || null,
+          kategori: row['kategori'] || row['Kategori'] || row['KATEGORI'] || 'Lain',
+          kuantiti: qty,
+          tersedia: qty,
+          no_siri: row['no_siri'] || row['No. Siri'] || row['NO SIRI'] || null,
+          lokasi: row['lokasi'] || row['Lokasi'] || row['LOKASI'] || null,
+          tarikh_terima: row['tarikh_terima'] || row['Tarikh Terima'] || null,
+          harga_unit: parseFloat(row['harga_unit'] || row['Harga Unit'] || row['HARGA'] || 0) || null,
+        }])
+        if (!error) success++
+      }
+      showToast(`✅ ${success}/${rows.length} barang berjaya diimport!`)
+      addLog('import_excel', `${success} barang diimport dari Excel`)
+      fetchData()
+    } catch (err) {
+      showToast('Ralat baca fail: ' + err.message, 'error')
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  // ── Excel Export ──
+  function exportInventori() {
+    const data = items.map(i => ({
+      'Nama': i.nama,
+      'Kod Aset': i.kod || '',
+      'Kategori': i.kategori || '',
+      'No. Siri': i.no_siri || '',
+      'Lokasi': i.lokasi || '',
+      'Kuantiti': i.kuantiti,
+      'Tersedia': i.tersedia,
+      'Harga Unit (RM)': parseFloat(i.harga_unit) || 0,
+      'Nilai Aset (RM)': (parseFloat(i.harga_unit) || 0) * i.kuantiti,
+      'Tarikh Terima': i.tarikh_terima || '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventori ICT')
+    XLSX.writeFile(wb, `Inventori_ICT_${TODAY}.xlsx`)
+  }
+
+  function exportPeminjaman() {
+    const data = filteredPeminjaman.map(p => ({
+      'Peminjam': p.peminjam,
+      'Jawatan': p.jawatan || '',
+      'Barang': p.barang,
+      'Kod Aset': p.kod || '',
+      'Kuantiti': p.kuantiti,
+      'Tarikh Pinjam': p.tarikh_pinjam,
+      'Tarikh Pulang': p.tarikh_pulang,
+      'Status': STATUS_CONFIG[p.status]?.label || p.status,
+      'Tujuan': p.catatan || '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Peminjaman ICT')
+    XLSX.writeFile(wb, `Peminjaman_ICT_${TODAY}.xlsx`)
+  }
+
+  function downloadTemplate() {
+    const template = [{
+      'nama': 'Laptop Acer Aspire',
+      'kod': 'SK/ICT/001',
+      'kategori': 'Laptop',
+      'kuantiti': 10,
+      'no_siri': 'SN123456',
+      'lokasi': 'Makmal ICT 1',
+      'tarikh_terima': '2024-01-15',
+      'harga_unit': 2500,
+    }]
+    const ws = XLSX.utils.json_to_sheet(template)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Template')
+    XLSX.writeFile(wb, 'Template_Import_Barang.xlsx')
+  }
+
   const filteredPeminjaman = filterStatus === 'semua'
     ? peminjaman
     : peminjaman.filter(p => p.status === filterStatus)
@@ -247,6 +388,13 @@ export default function PeminjamanICT() {
     { id: 'inventori', label: '📦 Inventori' },
     { id: 'servis',    label: '🔧 Servis', badge: servisAktif },
     { id: 'admin',     label: '⚙️ Admin' },
+  ]
+
+  const ADMIN_TABS = [
+    { id: 'peminjaman', label: '📋 Peminjaman' },
+    { id: 'inventori',  label: '📦 Inventori' },
+    { id: 'import',     label: '📥 Import' },
+    { id: 'log',        label: '📜 Log' },
   ]
 
   return (
@@ -295,6 +443,21 @@ export default function PeminjamanICT() {
             ))}
           </div>
 
+          {/* Nilai Aset */}
+          {stats.totalNilai > 0 && (
+            <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">💰</div>
+              <div className="flex-1">
+                <div className="text-xs text-indigo-500 font-semibold">Jumlah Nilai Aset ICT</div>
+                <div className="text-2xl font-black text-indigo-700">{formatRM(stats.totalNilai)}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-indigo-400">{items.length} jenis</div>
+                <div className="text-xs text-indigo-400">{items.reduce((s, i) => s + i.kuantiti, 0)} unit</div>
+              </div>
+            </div>
+          )}
+
           {stats.lewat > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 items-start">
               <span className="text-2xl">🚨</span>
@@ -305,7 +468,6 @@ export default function PeminjamanICT() {
             </div>
           )}
 
-          {/* Inventori ringkas */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <SectionHeader icon="📦" title="Status Inventori" color="text-indigo-400" />
             <div className="space-y-3 mt-4">
@@ -334,7 +496,6 @@ export default function PeminjamanICT() {
             </div>
           </div>
 
-          {/* Terkini */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <SectionHeader icon="📋" title="Peminjaman Terkini" color="text-indigo-400"
               onMore={() => setTab('senarai')} />
@@ -414,9 +575,9 @@ export default function PeminjamanICT() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-indigo-400 mb-1.5">Catatan</label>
+            <label className="block text-xs font-semibold text-indigo-400 mb-1.5">Tujuan Peminjaman *</label>
             <textarea name="catatan" value={form.catatan} onChange={handleFormChange}
-              placeholder="Tujuan peminjaman..."
+              placeholder="Contoh: Untuk kelas Matematik Tingkatan 4"
               rows={3}
               className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 resize-none" />
           </div>
@@ -433,21 +594,27 @@ export default function PeminjamanICT() {
         <>
           <div className="flex items-center justify-between no-print">
             <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {['semua', 'dipinjam', 'lewat', 'dipulangkan'].map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-all ${
-                  filterStatus === s
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                }`}>
-                {s === 'semua' ? 'Semua' : STATUS_CONFIG[s]?.label}
-              </button>
-            ))}
+              {['semua', 'dipinjam', 'lewat', 'dipulangkan'].map(s => (
+                <button key={s} onClick={() => setFilterStatus(s)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-all ${
+                    filterStatus === s
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                  }`}>
+                  {s === 'semua' ? 'Semua' : STATUS_CONFIG[s]?.label}
+                </button>
+              ))}
             </div>
-            <button onClick={() => window.print()}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:border-indigo-500 hover:text-indigo-600 transition-colors">
-              🖨️ Print
-            </button>
+            <div className="flex gap-2 flex-shrink-0">
+              <button onClick={exportPeminjaman}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors">
+                📊 Excel
+              </button>
+              <button onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:border-indigo-500 hover:text-indigo-600 transition-colors">
+                🖨️ Print
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -482,7 +649,25 @@ export default function PeminjamanICT() {
       {/* ── INVENTORI ── */}
       {tab === 'inventori' && (
         <div className="space-y-3">
-          {items.map(item => (
+          <div className="flex gap-2 items-center">
+            <input
+              type="search"
+              placeholder="🔍 Cari nama, kod, lokasi..."
+              value={searchInv}
+              onChange={e => setSearchInv(e.target.value)}
+              className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+            />
+            <button onClick={exportInventori}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors whitespace-nowrap">
+              📊 Excel
+            </button>
+          </div>
+          <div className="text-xs text-gray-400">
+            {filteredItems.length} daripada {items.length} barang
+            {stats.totalNilai > 0 && ` • Nilai: ${formatRM(stats.totalNilai)}`}
+          </div>
+
+          {filteredItems.map(item => (
             <div key={item.id}
               className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-indigo-300 transition-colors"
               onClick={() => setModal({ type: 'item', data: item })}>
@@ -496,6 +681,11 @@ export default function PeminjamanICT() {
                 <div className="text-sm font-bold text-gray-900">{item.nama}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{item.kod} • {item.kategori}</div>
                 {item.lokasi && <div className="text-xs text-indigo-500 mt-0.5">📍 {item.lokasi}</div>}
+                {item.harga_unit > 0 && (
+                  <div className="text-xs text-emerald-600 mt-0.5 font-semibold">
+                    💰 {formatRM(item.harga_unit)} / unit
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex-1 bg-gray-100 rounded-full h-2">
                     <div className={`h-2 rounded-full ${
@@ -513,13 +703,19 @@ export default function PeminjamanICT() {
               </div>
             </div>
           ))}
+
+          {filteredItems.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              <div className="text-5xl mb-3">{searchInv ? '🔍' : '📦'}</div>
+              <div className="text-sm">{searchInv ? `Tiada barang untuk "${searchInv}"` : 'Tiada barang dalam inventori'}</div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── SERVIS ── */}
       {tab === 'servis' && (
         <>
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-3">
             {[
               { num: servis.filter(s => s.status === 'dilaporkan').length,   label: 'Dilaporkan',   color: 'text-red-500' },
@@ -533,7 +729,6 @@ export default function PeminjamanICT() {
             ))}
           </div>
 
-          {/* Form lapor rosak */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
             <div className="text-sm font-bold text-red-500">🔧 Lapor Barang Rosak / Penyelenggaraan</div>
             <div className="grid grid-cols-2 gap-3">
@@ -586,7 +781,6 @@ export default function PeminjamanICT() {
             </button>
           </div>
 
-          {/* Senarai rekod servis */}
           <div className="space-y-3">
             {servis.map(s => {
               const sc = STATUS_SERVIS[s.status] ?? STATUS_SERVIS.dilaporkan
@@ -642,142 +836,283 @@ export default function PeminjamanICT() {
       {/* ── ADMIN ── */}
       {tab === 'admin' && (
         <AdminGate>
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <SectionHeader icon="📋" title="Semua Peminjaman" color="text-indigo-400" />
-            <div className="space-y-2.5 mt-4">
-              {peminjaman.map(p => {
-                const s = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.dipinjam
-                return (
-                  <div key={p.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setModal({ type: 'detail', data: p })}>
-                      <div className="text-xs font-semibold text-gray-900 truncate">{p.peminjam}</div>
-                      <div className="text-xs text-gray-500 truncate">{p.barang} • {p.tarikh_pulang}</div>
+          {/* Admin sub-tabs */}
+          <div className="flex gap-1.5 bg-gray-50 border border-gray-200 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+            {ADMIN_TABS.map(t => (
+              <button key={t.id}
+                onClick={() => { setTabAdmin(t.id); if (t.id === 'log') fetchLog() }}
+                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  tabAdmin === t.id
+                    ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Admin: Peminjaman */}
+          {tabAdmin === 'peminjaman' && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <SectionHeader icon="📋" title="Semua Peminjaman" color="text-indigo-400" />
+              <div className="space-y-2.5 mt-4">
+                {peminjaman.map(p => {
+                  const s = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.dipinjam
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setModal({ type: 'detail', data: p })}>
+                        <div className="text-xs font-semibold text-gray-900 truncate">{p.peminjam}</div>
+                        <div className="text-xs text-gray-500 truncate">{p.barang} • {p.tarikh_pulang}</div>
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${s.bg} ${s.text}`}>{s.label}</span>
+                      <button onClick={() => deletePeminjaman(p)}
+                        className="text-xs text-red-500 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0">
+                        🗑️
+                      </button>
                     </div>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${s.bg} ${s.text}`}>{s.label}</span>
-                    <button onClick={() => deletePeminjaman(p)}
-                      className="text-xs text-red-500 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-900/30 transition-colors flex-shrink-0">
+                  )
+                })}
+                {peminjaman.length === 0 && <div className="text-center py-8 text-gray-500 text-xs">Tiada rekod</div>}
+              </div>
+            </div>
+          )}
+
+          {/* Admin: Inventori */}
+          {tabAdmin === 'inventori' && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+              <SectionHeader icon="📦" title="Urus Inventori" color="text-indigo-400" />
+
+              <div className="bg-gray-100 rounded-2xl p-4 space-y-3">
+                <div className="text-xs font-bold text-indigo-400">➕ Tambah Barang Baru</div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Gambar Barang</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                      style={{ background: '#E5E7EB', border: '1px solid #D1D5DB' }}>
+                      {gambarPreview
+                        ? <img src={gambarPreview} className="w-full h-full object-cover" />
+                        : <span className="text-2xl">📷</span>}
+                    </div>
+                    <label className="flex-1 cursor-pointer">
+                      <div className="w-full bg-white border border-dashed border-indigo-300 rounded-xl px-3 py-2.5 text-xs text-indigo-500 font-semibold text-center hover:bg-indigo-50 transition-colors">
+                        {gambarFile ? gambarFile.name : 'Klik untuk pilih gambar'}
+                      </div>
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files[0]
+                          if (f) { setGambarFile(f); setGambarPreview(URL.createObjectURL(f)) }
+                        }} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Nama Barang *</label>
+                    <input value={formBarang.nama} onChange={e => setFormBarang(f => ({ ...f, nama: e.target.value }))}
+                      placeholder="Contoh: Laptop Acer"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Kod Aset</label>
+                    <input value={formBarang.kod} onChange={e => setFormBarang(f => ({ ...f, kod: e.target.value }))}
+                      placeholder="Contoh: SK/ICT/001"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">No. Siri</label>
+                    <input value={formBarang.no_siri} onChange={e => setFormBarang(f => ({ ...f, no_siri: e.target.value }))}
+                      placeholder="Contoh: SN123456"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Lokasi / Bilik</label>
+                    <input value={formBarang.lokasi} onChange={e => setFormBarang(f => ({ ...f, lokasi: e.target.value }))}
+                      placeholder="Contoh: Makmal ICT 1"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Kategori</label>
+                    <select value={formBarang.kategori} onChange={e => setFormBarang(f => ({ ...f, kategori: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400">
+                      {KATEGORI_LIST.map(k => <option key={k}>{k}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Kuantiti</label>
+                    <input type="number" min="1" value={formBarang.kuantiti}
+                      onChange={e => setFormBarang(f => ({ ...f, kuantiti: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Harga Unit (RM)</label>
+                    <input type="number" min="0" step="0.01" value={formBarang.harga_unit}
+                      onChange={e => setFormBarang(f => ({ ...f, harga_unit: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tarikh Terima</label>
+                  <input type="date" value={formBarang.tarikh_terima}
+                    onChange={e => setFormBarang(f => ({ ...f, tarikh_terima: e.target.value }))}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
+                </div>
+
+                <button onClick={tambahBarang}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold transition-colors">
+                  ➕ Tambah Barang
+                </button>
+              </div>
+
+              <div className="space-y-2.5">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                    <div className="text-xl">{getKategoriIcon(item.nama)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-gray-900 truncate">{item.nama}</div>
+                      <div className="text-xs text-gray-500">{item.kod} • {item.tersedia}/{item.kuantiti} tersedia</div>
+                      {item.harga_unit > 0 && (
+                        <div className="text-xs text-emerald-600 font-semibold">{formatRM(item.harga_unit)}</div>
+                      )}
+                    </div>
+                    <button onClick={() => setQrModal(item)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition-colors flex-shrink-0"
+                      style={{ background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE' }}>
+                      📱 QR
+                    </button>
+                    <button onClick={() => deleteBarang(item.id)}
+                      className="text-xs text-red-500 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0">
                       🗑️
                     </button>
                   </div>
-                )
-              })}
-              {peminjaman.length === 0 && <div className="text-center py-8 text-gray-500 text-xs">Tiada rekod</div>}
+                ))}
+                {items.length === 0 && <div className="text-center py-8 text-gray-500 text-xs">Tiada barang</div>}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-            <SectionHeader icon="📦" title="Urus Inventori" color="text-indigo-400" />
-
-            {/* Form tambah barang */}
-            <div className="bg-gray-100 rounded-2xl p-4 space-y-3">
-              <div className="text-xs font-bold text-indigo-400">➕ Tambah Barang Baru</div>
-
-              {/* Gambar upload */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Gambar Barang</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
-                    style={{ background: '#E5E7EB', border: '1px solid #D1D5DB' }}>
-                    {gambarPreview
-                      ? <img src={gambarPreview} className="w-full h-full object-cover" />
-                      : <span className="text-2xl">📷</span>}
+          {/* Admin: Import Excel */}
+          {tabAdmin === 'import' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+                <div className="text-sm font-bold text-indigo-400">📥 Import Barang dari Excel</div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-indigo-700">Format lajur yang diterima:</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      ['nama *', 'Nama barang (wajib)'],
+                      ['kod', 'Kod aset'],
+                      ['kategori', 'Laptop/Projektor/dll'],
+                      ['kuantiti', 'Jumlah unit'],
+                      ['no_siri', 'No. siri'],
+                      ['lokasi', 'Bilik/makmal'],
+                      ['harga_unit', 'Harga seunit (RM)'],
+                      ['tarikh_terima', 'YYYY-MM-DD'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="text-xs">
+                        <span className="font-mono font-bold text-indigo-600">{k}</span>
+                        <span className="text-indigo-500"> — {v}</span>
+                      </div>
+                    ))}
                   </div>
-                  <label className="flex-1 cursor-pointer">
-                    <div className="w-full bg-white border border-dashed border-indigo-300 rounded-xl px-3 py-2.5 text-xs text-indigo-500 font-semibold text-center hover:bg-indigo-50 transition-colors">
-                      {gambarFile ? gambarFile.name : 'Klik untuk pilih gambar'}
+                </div>
+
+                <button onClick={downloadTemplate}
+                  className="w-full border border-indigo-200 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition-colors">
+                  ⬇️ Muat Turun Template Excel
+                </button>
+
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-400 mb-1.5">Upload Fail Excel (.xlsx / .xls)</label>
+                  <label className="block cursor-pointer">
+                    <div className={`w-full border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                      importLoading
+                        ? 'border-amber-300 bg-amber-50'
+                        : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'
+                    }`}>
+                      {importLoading ? (
+                        <>
+                          <div className="text-3xl mb-2">⏳</div>
+                          <div className="text-sm font-bold text-amber-600">Sedang import...</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-3xl mb-2">📂</div>
+                          <div className="text-sm font-bold text-indigo-600">Klik untuk pilih fail Excel</div>
+                          <div className="text-xs text-gray-400 mt-1">.xlsx atau .xls</div>
+                        </>
+                      )}
                     </div>
-                    <input type="file" accept="image/*" className="hidden"
+                    <input type="file" accept=".xlsx,.xls" className="hidden" disabled={importLoading}
                       onChange={e => {
                         const f = e.target.files[0]
-                        if (f) { setGambarFile(f); setGambarPreview(URL.createObjectURL(f)) }
+                        if (f) importExcel(f)
+                        e.target.value = ''
                       }} />
                   </label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Nama Barang *</label>
-                  <input value={formBarang.nama} onChange={e => setFormBarang(f => ({ ...f, nama: e.target.value }))}
-                    placeholder="Contoh: Laptop Acer"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Kod Aset *</label>
-                  <input value={formBarang.kod} onChange={e => setFormBarang(f => ({ ...f, kod: e.target.value }))}
-                    placeholder="Contoh: SK/ICT/001"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
-                </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="text-xs font-bold text-amber-700 mb-1">⚠️ Nota Penting</div>
+                <ul className="text-xs text-amber-600 space-y-1 list-disc list-inside">
+                  <li>Baris tanpa nama barang akan diabaikan</li>
+                  <li>Kuantiti tersedia = kuantiti (stok penuh)</li>
+                  <li>Semak data sebelum import — tiada undo</li>
+                </ul>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">No. Siri</label>
-                  <input value={formBarang.no_siri} onChange={e => setFormBarang(f => ({ ...f, no_siri: e.target.value }))}
-                    placeholder="Contoh: SN123456"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Lokasi / Bilik</label>
-                  <input value={formBarang.lokasi} onChange={e => setFormBarang(f => ({ ...f, lokasi: e.target.value }))}
-                    placeholder="Contoh: Makmal ICT 1"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Kategori</label>
-                  <select value={formBarang.kategori} onChange={e => setFormBarang(f => ({ ...f, kategori: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400">
-                    {KATEGORI_LIST.map(k => <option key={k}>{k}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Kuantiti</label>
-                  <input type="number" min="1" value={formBarang.kuantiti}
-                    onChange={e => setFormBarang(f => ({ ...f, kuantiti: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Tarikh Terima</label>
-                <input type="date" value={formBarang.tarikh_terima}
-                  onChange={e => setFormBarang(f => ({ ...f, tarikh_terima: e.target.value }))}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
-              </div>
-
-              <button onClick={tambahBarang}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold transition-colors">
-                ➕ Tambah Barang
-              </button>
             </div>
+          )}
 
-            {/* Senarai barang */}
-            <div className="space-y-2.5">
-              {items.map(item => (
-                <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                  <div className="text-xl">{getKategoriIcon(item.nama)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-gray-900 truncate">{item.nama}</div>
-                    <div className="text-xs text-gray-500">{item.kod} • {item.tersedia}/{item.kuantiti} tersedia</div>
-                  </div>
-                  <button onClick={() => setQrModal(item)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition-colors flex-shrink-0"
-                    style={{ background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE' }}>
-                    📱 QR
-                  </button>
-                  <button onClick={() => deleteBarang(item.id)}
-                    className="text-xs text-red-500 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0">
-                    🗑️
-                  </button>
+          {/* Admin: Log Sejarah */}
+          {tabAdmin === 'log' && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <SectionHeader icon="📜" title="Log Sejarah" color="text-indigo-400" />
+                <button onClick={fetchLog}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                  🔄 Muat Semula
+                </button>
+              </div>
+
+              {log.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-2">📜</div>
+                  <div className="text-sm text-gray-500">Tiada log</div>
+                  <div className="text-xs text-gray-400 mt-1">Pastikan jadual log_ict wujud dalam Supabase</div>
                 </div>
-              ))}
-              {items.length === 0 && <div className="text-center py-8 text-gray-500 text-xs">Tiada barang</div>}
+              ) : (
+                <div className="space-y-2">
+                  {log.map(l => (
+                    <div key={l.id} className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
+                      <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-base flex-shrink-0">
+                        {LOG_ICONS[l.aksi] || '📋'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-gray-900">{l.butiran}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {new Date(l.created_at).toLocaleString('ms-MY', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </AdminGate>
       )}
 
@@ -788,7 +1123,6 @@ export default function PeminjamanICT() {
           <div className="rounded-3xl p-6 w-full max-w-xs"
             style={{ background: '#FFFFFF', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
 
-            {/* Print target */}
             <div ref={qrRef} id="qr-print-area"
               className="text-center p-5 rounded-2xl"
               style={{ background: '#FFFFFF', border: '2px solid #E5E7EB' }}>
@@ -975,7 +1309,15 @@ export default function PeminjamanICT() {
                       <div className="text-xs text-gray-500">{item.kod}</div>
                     </div>
                     {isAdmin && !editMode && (
-                      <button onClick={() => { setEditMode(true); setEditData({ nama: item.nama, kod: item.kod, kategori: item.kategori, no_siri: item.no_siri || '', lokasi: item.lokasi || '', kuantiti: item.kuantiti, tarikh_terima: item.tarikh_terima || '' }) }}
+                      <button onClick={() => {
+                        setEditMode(true)
+                        setEditData({
+                          nama: item.nama, kod: item.kod, kategori: item.kategori,
+                          no_siri: item.no_siri || '', lokasi: item.lokasi || '',
+                          kuantiti: item.kuantiti, tarikh_terima: item.tarikh_terima || '',
+                          harga_unit: item.harga_unit || '',
+                        })
+                      }}
                         className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100">
                         ✏️ Edit
                       </button>
@@ -998,7 +1340,7 @@ export default function PeminjamanICT() {
                           </div>
                         ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Kategori</label>
                           <select value={ed.kategori ?? 'Laptop'} onChange={e => setEditData(d => ({ ...d, kategori: e.target.value }))}
@@ -1009,6 +1351,12 @@ export default function PeminjamanICT() {
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Kuantiti</label>
                           <input type="number" min="1" value={ed.kuantiti ?? 1} onChange={e => setEditData(d => ({ ...d, kuantiti: parseInt(e.target.value) }))}
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Harga (RM)</label>
+                          <input type="number" min="0" step="0.01" value={ed.harga_unit ?? ''} onChange={e => setEditData(d => ({ ...d, harga_unit: e.target.value }))}
+                            placeholder="0.00"
                             className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
                         </div>
                       </div>
@@ -1037,6 +1385,8 @@ export default function PeminjamanICT() {
                         ['Tarikh Terima', item.tarikh_terima ? new Date(item.tarikh_terima).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'],
                         ['Jumlah',        item.kuantiti + ' unit'],
                         ['Tersedia',      item.tersedia + ' unit'],
+                        ['Harga Unit',    item.harga_unit > 0 ? formatRM(item.harga_unit) : '—'],
+                        ['Nilai Aset',    item.harga_unit > 0 ? formatRM(item.harga_unit * item.kuantiti) : '—'],
                       ].map(([k, v]) => (
                         <div key={k} className="flex justify-between py-2 border-b border-gray-100">
                           <span className="text-xs text-gray-500">{k}</span>
