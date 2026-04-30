@@ -59,12 +59,7 @@ export default function SistemIDDelima() {
   const [editMode, setEditMode] = useState(false)
   const [editData, setEditData] = useState(null)
 
-  const [kelasConfig, setKelasConfig] = useState(() => {
-    try {
-      const saved = localStorage.getItem('delima_kelas_config')
-      return saved ? JSON.parse(saved) : DEFAULT_KELAS
-    } catch { return DEFAULT_KELAS }
-  })
+  const [kelasConfig, setKelasConfig] = useState(DEFAULT_KELAS)
   const [kelasEdit, setKelasEdit] = useState(null)
 
   const allKelasFlat = ['1','2','3','4','5','6'].flatMap(t => kelasConfig[t] ?? [])
@@ -74,11 +69,19 @@ export default function SistemIDDelima() {
     setTimeout(() => setToast(null), 2800)
   }
 
-  function saveKelasEdit() {
+  async function saveKelasEdit() {
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'kelas_config', value: kelasEdit }, { onConflict: 'key' })
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
     setKelasConfig(kelasEdit)
-    localStorage.setItem('delima_kelas_config', JSON.stringify(kelasEdit))
     setKelasEdit(null)
     showToast('✅ Nama kelas berjaya disimpan!')
+  }
+
+  async function fetchKelasConfig() {
+    const { data } = await supabase.from('app_settings')
+      .select('value').eq('key', 'kelas_config').single()
+    if (data?.value) setKelasConfig(data.value)
   }
 
   function exportCSV(jenis) {
@@ -152,7 +155,7 @@ export default function SistemIDDelima() {
     setGuru(g ?? []); setMurid(m ?? []); setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData(); fetchKelasConfig() }, [])
 
   const stats = {
     guruAktif:  guru.filter(g => g.status === 'aktif').length,
