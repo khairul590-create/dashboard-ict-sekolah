@@ -33,17 +33,18 @@ const SLOT_PETANG = [
   { masa: '13:30–14:00', label: 'T3' },
   { masa: '14:00–14:30', label: 'T4' },
   { masa: '14:30–15:00', label: 'T5' },
-  { masa: '15:00–15:30', label: 'T6' },
-  { masa: '15:30–16:00', label: 'T7' },
-  { masa: '16:00–16:30', label: 'T8' },
-  { masa: '16:30–17:00', label: 'T9' },
-  { masa: '17:00–17:20', label: 'T10' },
+  { masa: '15:00–15:20', label: '—',  rehat: true },
+  { masa: '15:20–15:50', label: 'T6' },
+  { masa: '15:50–16:20', label: 'T7' },
+  { masa: '16:20–16:50', label: 'T8' },
+  { masa: '16:50–17:20', label: 'T9' },
+  { masa: '17:20–17:40', label: 'T10' },
 ]
 
 const PAGI_STARTS = SLOT_PAGI.filter(s => !s.rehat).map(s => s.masa.split('–')[0])
 const PAGI_ENDS   = SLOT_PAGI.filter(s => !s.rehat).map(s => s.masa.split('–')[1])
-const PETANG_STARTS = SLOT_PETANG.map(s => s.masa.split('–')[0])
-const PETANG_ENDS   = SLOT_PETANG.map(s => s.masa.split('–')[1])
+const PETANG_STARTS = SLOT_PETANG.filter(s => !s.rehat).map(s => s.masa.split('–')[0])
+const PETANG_ENDS   = SLOT_PETANG.filter(s => !s.rehat).map(s => s.masa.split('–')[1])
 const ALL_STARTS = [...PAGI_STARTS, ...PETANG_STARTS]
 
 function toMins(t) {
@@ -481,15 +482,33 @@ export default function TempahanBilik() {
                   </td>
                 </tr>
 
-                {SLOT_PETANG.map(slot => (
-                  <JadualRow key={slot.masa} slot={slot} bilikList={bilikList}
-                    tempahan={tempahan} tarikh={jadualDate} getTutupInfo={getTutupInfo}
-                    onBook={(bilik, masa) => {
-                      const [mula, tamat] = masa.split('–')
-                      setForm(f => ({ ...f, bilik, tarikh: jadualDate, masa_mula: mula, masa_tamat: tamat }))
-                      setTab('tempah')
-                    }} />
-                ))}
+                {SLOT_PETANG.map((slot) => {
+                  if (slot.rehat) {
+                    return (
+                      <tr key="rehat-petang">
+                        <td className="px-2 py-2 text-xs font-bold border-b border-r border-gray-200 sticky left-0 text-amber-500"
+                          style={{ background: '#FFFBEB' }}>
+                          <div className="leading-tight">15:00</div>
+                          <div className="leading-tight">15:20</div>
+                        </td>
+                        <td colSpan={bilikList.length}
+                          className="text-center py-2 border-b border-gray-200 text-xs font-bold tracking-wide"
+                          style={{ background: 'rgba(245,166,35,0.06)', color: '#F5A623' }}>
+                          — WAKTU REHAT —
+                        </td>
+                      </tr>
+                    )
+                  }
+                  return (
+                    <JadualRow key={slot.masa} slot={slot} bilikList={bilikList}
+                      tempahan={tempahan} tarikh={jadualDate} getTutupInfo={getTutupInfo}
+                      onBook={(bilik, masa) => {
+                        const [mula, tamat] = masa.split('–')
+                        setForm(f => ({ ...f, bilik, tarikh: jadualDate, masa_mula: mula, masa_tamat: tamat }))
+                        setTab('tempah')
+                      }} />
+                  )
+                })}
               </tbody>
             </table>
           </div>
