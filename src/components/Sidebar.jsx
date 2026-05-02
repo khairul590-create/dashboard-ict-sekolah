@@ -19,7 +19,7 @@ export default function Sidebar({ badgeCounts = {} }) {
       <div className="p-5" style={{ borderBottom: '3px solid #111827' }}>
         <div className="flex items-center gap-3">
           <div style={{ border: '3px solid #111827', borderRadius: 16, overflow: 'hidden', boxShadow: '3px 3px 0 #111827', flexShrink: 0 }}>
-            <img src="https://i.postimg.cc/pdhvk3Q2/images.jpg" alt="Logo SK Darau"
+            <img src="/logo-sekolah.jpg" alt="Logo SK Darau"
               className="w-11 h-11 object-cover block" />
           </div>
           <div className="min-w-0">

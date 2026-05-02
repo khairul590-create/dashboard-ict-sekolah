@@ -25,7 +25,7 @@ export default function TopBar({ alertCount = 0 }) {
         <div className="flex items-center gap-3">
           <div style={{ border: '2px solid #111827', borderRadius: 12, overflow: 'hidden', boxShadow: '2px 2px 0 #111827', flexShrink: 0 }}
             className="lg:hidden">
-            <img src="https://i.postimg.cc/pdhvk3Q2/images.jpg" alt="Logo SK Darau"
+            <img src="/logo-sekolah.jpg" alt="Logo SK Darau"
               className="w-9 h-9 object-cover block" />
           </div>
           <div>
