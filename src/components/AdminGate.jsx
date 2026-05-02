@@ -2,16 +2,21 @@ import { useState } from 'react'
 import { useAdmin } from '../contexts/AdminContext'
 
 export default function AdminGate({ children }) {
-  const { isAdmin, login, logout } = useAdmin()
+  const { isAdmin, login, logout, loading } = useAdmin()
   const [show, setShow] = useState(false)
-  const [form, setForm] = useState({ user: '', pass: '' })
+  const [form, setForm] = useState({ email: '', pass: '' })
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const handleLogin = () => {
-    const ok = login(form.user, form.pass)
-    if (ok) { setShow(false); setForm({ user: '', pass: '' }); setError('') }
-    else setError('Username atau password salah.')
+  const handleLogin = async () => {
+    setBusy(true)
+    const ok = await login(form.email, form.pass)
+    setBusy(false)
+    if (ok) { setShow(false); setForm({ email: '', pass: '' }); setError('') }
+    else setError('Emel atau password salah.')
   }
+
+  if (loading) return null
 
   if (isAdmin) {
     return (
@@ -56,9 +61,10 @@ export default function AdminGate({ children }) {
 
             <div className="space-y-3 mb-4">
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4F46E5' }}>Username</label>
-                <input value={form.user} onChange={e => setForm(f => ({ ...f, user: e.target.value }))}
-                  placeholder="admin"
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#4F46E5' }}>Emel Admin</label>
+                <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  type="email"
+                  placeholder="admin@sekolah.edu.my"
                   className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
                   style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', color: '#111827' }}
                   onKeyDown={e => e.key === 'Enter' && handleLogin()} />
@@ -75,10 +81,10 @@ export default function AdminGate({ children }) {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={handleLogin}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90"
+              <button onClick={handleLogin} disabled={busy}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #4F46E5, #7C3AED)' }}>
-                Masuk
+                {busy ? 'Masuk...' : 'Masuk'}
               </button>
               <button onClick={() => { setShow(false); setError('') }}
                 className="px-4 py-2.5 rounded-xl text-sm font-medium"

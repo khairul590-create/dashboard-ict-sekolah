@@ -1,29 +1,36 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const AdminContext = createContext(null)
 
-const ADMIN_USER = 'admin'
-const ADMIN_PASS = 'ict2026'
-
 export function AdminProvider({ children }) {
-  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const login = (user, pass) => {
-    if (user === ADMIN_USER && pass === ADMIN_PASS) {
-      sessionStorage.setItem('isAdmin', 'true')
-      setIsAdmin(true)
-      return true
-    }
-    return false
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAdmin(!!session)
+      setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdmin(!!session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const login = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return !error
   }
 
-  const logout = () => {
-    sessionStorage.removeItem('isAdmin')
-    setIsAdmin(false)
+  const logout = async () => {
+    await supabase.auth.signOut()
   }
 
   return (
-    <AdminContext.Provider value={{ isAdmin, login, logout }}>
+    <AdminContext.Provider value={{ isAdmin, login, logout, loading }}>
       {children}
     </AdminContext.Provider>
   )
