@@ -256,19 +256,21 @@ export default function SistemIDDelima() {
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-full text-sm font-semibold text-white shadow-xl transition-all max-w-sm text-center ${
-          toast.type === 'error' ? 'bg-red-500' : 'bg-violet-600'
+          toast.type === 'error' ? 'bg-red-500' : 'bg-blue-600'
         }`}>
           {toast.msg}
         </div>
       )}
 
       {/* Tab Nav */}
-      <div className="flex gap-1.5 bg-white border border-gray-200 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+        style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setCarian('') }}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              tab === t.id ? 'bg-violet-600 text-white' : 'text-gray-500 hover:text-gray-900'
-            }`}>
+            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            style={tab === t.id
+              ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+              : { background: 'transparent', color: '#64748B' }}>
             {t.label}
           </button>
         ))}
@@ -279,21 +281,23 @@ export default function SistemIDDelima() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { num: stats.guruAktif,  label: 'Guru Aktif',    icon: '👨‍🏫', color: 'text-violet-400' },
-              { num: stats.muridAktif, label: 'Murid Aktif',   icon: '🎓',  color: 'text-purple-400' },
-              { num: stats.dikunci,    label: 'Akaun Dikunci', icon: '🔒',  color: 'text-red-400' },
-              { num: stats.tidakAktif, label: 'Tidak Aktif',   icon: '⭕',  color: 'text-gray-400' },
+              { num: stats.guruAktif,  label: 'Guru Aktif',    icon: '👨‍🏫', bg: '#EDE9FE', numColor: '#7C3AED' },
+              { num: stats.muridAktif, label: 'Murid Aktif',   icon: '🎓',  bg: '#DBEAFE', numColor: '#1D4ED8' },
+              { num: stats.dikunci,    label: 'Akaun Dikunci', icon: '🔒',  bg: '#FEE2E2', numColor: '#DC2626' },
+              { num: stats.tidakAktif, label: 'Tidak Aktif',   icon: '⭕',  bg: '#F3F4F6', numColor: '#6B7280' },
             ].map((s, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-4">
-                <div className="text-2xl mb-2">{s.icon}</div>
-                <div className={`text-3xl font-black ${s.color}`}>{s.num}</div>
+              <div key={i} className="neo-card p-5 animate-fade-up" style={{ background: s.bg }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl mb-3"
+                  style={{ background: 'rgba(255,255,255,0.6)' }}>{s.icon}</div>
+                <div className="text-3xl font-black" style={{ color: s.numColor, fontFamily: "'JetBrains Mono', monospace" }}>{s.num}</div>
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           {stats.dikunci > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 items-start">
+            <div className="rounded-2xl p-4 flex gap-3 items-start"
+              style={{ background: '#FEE2E2', border: '3px solid #111827', boxShadow: '4px 4px 0 #111827', borderRadius: 20 }}>
               <span className="text-2xl">🔒</span>
               <div>
                 <div className="text-sm font-bold text-red-700">{stats.dikunci} Akaun Dikunci</div>
@@ -307,7 +311,7 @@ export default function SistemIDDelima() {
           )}
 
           {/* Guru preview */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="👨‍🏫" title="ID DELIMA Guru" color="text-violet-400"
               onMore={() => { setTab('senarai'); setSubTab('guru') }} />
             <div className="space-y-2.5 mt-4">
@@ -328,7 +332,7 @@ export default function SistemIDDelima() {
           </div>
 
           {/* Murid preview — public sees nama only */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="🎓" title="ID DELIMA Murid" color="text-purple-400"
               onMore={() => { setTab('senarai'); setSubTab('murid') }} />
             <div className="space-y-2.5 mt-4">
@@ -357,19 +361,21 @@ export default function SistemIDDelima() {
       {/* ── DAFTAR ── */}
       {tab === 'daftar' && (
         <>
-          <div className="flex gap-2 bg-white border border-gray-200 rounded-2xl p-1.5">
+          <div className="flex gap-2 rounded-2xl p-1.5"
+            style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
             {['guru','murid'].map(s => (
               <button key={s} onClick={() => setSubTab(s)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  subTab === s ? 'bg-violet-600 text-white' : 'text-gray-400'
-                }`}>
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                style={subTab === s
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: 'transparent', color: '#64748B' }}>
                 {s === 'guru' ? '👨‍🏫 Daftar Guru' : '🎓 Daftar Murid'}
               </button>
             ))}
           </div>
 
           {subTab === 'guru' ? (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div className="neo-card p-5 space-y-4">
               <div className="text-sm font-bold text-violet-400">📝 Daftar ID DELIMA Guru Baru</div>
               {[
                 { label: 'Nama Penuh *',  field: 'nama',       placeholder: 'Nama penuh guru' },
@@ -392,16 +398,17 @@ export default function SistemIDDelima() {
                   {GRED_LIST.map(g => <option key={g}>{g}</option>)}
                 </select>
               </div>
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 text-xs text-violet-700">
+              <div className="rounded-xl p-3 text-xs" style={{ background: '#EEF3FF', border: '2px solid #2563EB', color: '#1D4ED8' }}>
                 ℹ️ ID DELIMA format AIR2024XXX akan dijana automatik.
               </div>
               <button onClick={tambahGuru}
-                className="w-full bg-gradient-to-r from-violet-600 to-purple-500 text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity">
+                className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn"
+                style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
                 🔐 Jana ID DELIMA Guru
               </button>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div className="neo-card p-5 space-y-4">
               <div className="text-sm font-bold text-violet-400">📝 Daftar ID DELIMA Murid Baru</div>
               {[
                 { label: 'Nama Penuh *',        field: 'nama',   placeholder: 'Nama penuh murid' },
@@ -444,11 +451,12 @@ export default function SistemIDDelima() {
                   ))}
                 </div>
               </div>
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 text-xs text-violet-700">
+              <div className="rounded-xl p-3 text-xs" style={{ background: '#EEF3FF', border: '2px solid #2563EB', color: '#1D4ED8' }}>
                 ℹ️ ID DELIMA format MR2024XXX. Default password: No. Kad (tanpa '-').
               </div>
               <button onClick={tambahMurid}
-                className="w-full bg-gradient-to-r from-violet-600 to-purple-500 text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity">
+                className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn"
+                style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
                 🔐 Jana ID DELIMA Murid
               </button>
             </div>
@@ -462,12 +470,14 @@ export default function SistemIDDelima() {
           <input ref={importGuruRef}  type="file" accept=".csv" className="hidden" onChange={e => importCSV('guru', e)} />
           <input ref={importMuridRef} type="file" accept=".csv" className="hidden" onChange={e => importCSV('murid', e)} />
 
-          <div className="flex gap-2 bg-white border border-gray-200 rounded-2xl p-1.5">
+          <div className="flex gap-2 rounded-2xl p-1.5"
+            style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
             {['guru','murid'].map(s => (
               <button key={s} onClick={() => { setSubTab(s); setCarian('') }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  subTab === s ? 'bg-violet-600 text-white' : 'text-gray-400'
-                }`}>
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                style={subTab === s
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: 'transparent', color: '#64748B' }}>
                 {s === 'guru' ? `👨‍🏫 Guru (${guru.length})` : `🎓 Murid (${murid.length})`}
               </button>
             ))}
@@ -476,22 +486,26 @@ export default function SistemIDDelima() {
           {/* CSV actions */}
           <div className="flex flex-wrap gap-2">
             <button onClick={() => exportCSV(subTab)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+              style={{ background: '#DCFCE7', color: '#15803D' }}>
               📥 Export CSV
             </button>
             {isAdmin && (
               <button onClick={() => (subTab === 'guru' ? importGuruRef : importMuridRef).current?.click()}
                 disabled={importing}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors disabled:opacity-60">
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold neo-btn disabled:opacity-60"
+                style={{ background: '#EEF3FF', color: '#2563EB' }}>
                 {importing ? '⏳ Importing...' : '📤 Import CSV'}
               </button>
             )}
             <button onClick={() => downloadTemplate(subTab)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+              style={{ background: '#F3F4F6', color: '#374151' }}>
               📋 Template
             </button>
             <button onClick={() => window.print()}
-              className="no-print flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:border-violet-500 hover:text-violet-600 transition-colors">
+              className="no-print flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+              style={{ background: '#F3F4F6', color: '#374151' }}>
               🖨️ Print
             </button>
           </div>
@@ -509,7 +523,7 @@ export default function SistemIDDelima() {
             <div className="space-y-2.5">
               {filteredGuru.map(item => (
                 <div key={item.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
+                  className="neo-card p-4 flex items-center gap-3 cursor-pointer"
                   onClick={() => openModal('guru', item)}>
                   <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">👨‍🏫</div>
                   <div className="flex-1 min-w-0">
@@ -539,10 +553,10 @@ export default function SistemIDDelima() {
                 if (carian && totalTahun === 0) return null
 
                 return (
-                  <div key={tahun} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  <div key={tahun} className="neo-card overflow-hidden">
                     {/* Tahun header */}
                     <div className="flex items-center justify-between px-4 py-3"
-                      style={{ background: 'linear-gradient(135deg, #7c3aed10, #a855f710)' }}>
+                      style={{ background: '#EDE9FE' }}>
                       <div className="flex items-center gap-2">
                         <span className="text-base">📚</span>
                         <span className="text-sm font-black text-violet-700">Tahun {tahun}</span>
@@ -654,16 +668,18 @@ export default function SistemIDDelima() {
       {/* ── ADMIN ── */}
       {tab === 'admin' && (
         <AdminGate>
-          <div className="flex gap-2 bg-white border border-gray-200 rounded-2xl p-1.5">
+          <div className="flex gap-2 rounded-2xl p-1.5"
+            style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
             {[
               { id: 'guru',  label: `👨‍🏫 Guru (${guru.length})` },
               { id: 'murid', label: `🎓 Murid (${murid.length})` },
               { id: 'kelas', label: '🏫 Kelas' },
             ].map(s => (
               <button key={s.id} onClick={() => setSubTab(s.id)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  subTab === s.id ? 'bg-violet-600 text-white' : 'text-gray-400'
-                }`}>
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                style={subTab === s.id
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: 'transparent', color: '#64748B' }}>
                 {s.label}
               </button>
             ))}
@@ -671,7 +687,7 @@ export default function SistemIDDelima() {
 
           {/* Admin Guru list */}
           {subTab === 'guru' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="neo-card p-5">
               <SectionHeader icon="👨‍🏫" title="Semua Guru" color="text-violet-400" />
               <div className="space-y-2.5 mt-4">
                 {guru.map(item => (
@@ -694,7 +710,7 @@ export default function SistemIDDelima() {
 
           {/* Admin Murid list */}
           {subTab === 'murid' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="neo-card p-5">
               <SectionHeader icon="🎓" title="Semua Murid" color="text-violet-400" />
               <div className="space-y-2.5 mt-4">
                 {murid.map(item => (
@@ -731,11 +747,12 @@ export default function SistemIDDelima() {
                 <>
                   {/* View mode */}
                   {['1','2','3','4','5','6'].map(tahun => (
-                    <div key={tahun} className="bg-white border border-gray-200 rounded-2xl p-4">
+                    <div key={tahun} className="neo-card p-4">
                       <div className="text-xs font-bold text-violet-400 mb-3">📚 Tahun {tahun}</div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {(kelasConfig[tahun] ?? []).map((nama, i) => (
-                          <div key={i} className="bg-gray-50 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 text-center">
+                          <div key={i} className="px-3 py-2 text-xs font-semibold text-center"
+                            style={{ background: '#EEF3FF', border: '1.5px solid #2563EB', borderRadius: 12 }}>
                             {nama}
                           </div>
                         ))}
@@ -744,7 +761,8 @@ export default function SistemIDDelima() {
                   ))}
                   <button
                     onClick={() => setKelasEdit(JSON.parse(JSON.stringify(kelasConfig)))}
-                    className="w-full bg-violet-600 text-white py-3 rounded-2xl text-sm font-bold hover:bg-violet-700 transition-colors">
+                    className="w-full py-3 rounded-2xl text-sm font-bold neo-btn"
+                    style={{ background: '#2563EB', color: '#fff' }}>
                     ✏️ Edit Nama Kelas
                   </button>
                 </>
@@ -752,7 +770,7 @@ export default function SistemIDDelima() {
                 <>
                   {/* Edit mode */}
                   {['1','2','3','4','5','6'].map(tahun => (
-                    <div key={tahun} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2">
+                    <div key={tahun} className="neo-card p-4 space-y-2">
                       <div className="text-xs font-bold text-violet-400">📚 Tahun {tahun}</div>
                       {(kelasEdit[tahun] ?? []).map((nama, i) => (
                         <div key={i} className="flex items-center gap-2">
@@ -770,7 +788,8 @@ export default function SistemIDDelima() {
                   ))}
                   <div className="flex gap-2">
                     <button onClick={saveKelasEdit}
-                      className="flex-1 bg-violet-600 text-white py-3 rounded-2xl text-sm font-bold hover:bg-violet-700 transition-colors">
+                      className="flex-1 py-3 rounded-2xl text-sm font-bold neo-btn"
+                      style={{ background: '#2563EB', color: '#fff' }}>
                       💾 Simpan Nama Kelas
                     </button>
                     <button onClick={() => setKelasEdit(null)}
@@ -789,7 +808,8 @@ export default function SistemIDDelima() {
       {modal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center"
           onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="bg-white border border-gray-200 rounded-t-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+          <div className="bg-white rounded-t-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+            style={{ border: '3px solid #111827', borderBottom: 'none' }}>
             <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
 
             {modal.jenis === 'guru' && (() => {

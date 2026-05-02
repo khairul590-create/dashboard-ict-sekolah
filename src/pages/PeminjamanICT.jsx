@@ -402,20 +402,23 @@ export default function PeminjamanICT() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-full text-sm font-semibold text-white shadow-lg ${
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-full text-sm font-semibold text-white ${
           toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-600'
-        }`}>
+        }`}
+          style={{ border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
           {toast.msg}
         </div>
       )}
 
       {/* Tab Nav */}
-      <div className="flex gap-1.5 bg-white border border-gray-200 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+        style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-shrink-0 relative px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              tab === t.id ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-900'
-            }`}>
+            className="flex-shrink-0 relative px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            style={tab === t.id
+              ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+              : { background: 'transparent', color: '#64748B' }}>
             {t.label}
             {t.badge > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
@@ -431,21 +434,21 @@ export default function PeminjamanICT() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { num: stats.totalBarang,    label: 'Jenis Barang',   color: 'text-indigo-400' },
-              { num: stats.sedangDipinjam, label: 'Sedang Dipinjam',color: 'text-blue-400' },
-              { num: stats.lewat,          label: 'Lewat Pulang',   color: 'text-red-400' },
-              { num: stats.dipulangkan,    label: 'Dipulangkan',    color: 'text-emerald-400' },
+              { num: stats.totalBarang,    label: 'Jenis Barang',    bg: '#DBEAFE', numColor: '#1D4ED8' },
+              { num: stats.sedangDipinjam, label: 'Sedang Dipinjam', bg: '#E0F2FE', numColor: '#0369A1' },
+              { num: stats.lewat,          label: 'Lewat Pulang',    bg: '#FEE2E2', numColor: '#DC2626' },
+              { num: stats.dipulangkan,    label: 'Dipulangkan',     bg: '#DCFCE7', numColor: '#059669' },
             ].map((s, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-4">
-                <div className={`text-3xl font-black ${s.color}`}>{s.num}</div>
-                <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+              <div key={i} className="neo-card p-5 animate-fade-up" style={{ background: s.bg }}>
+                <div className="text-3xl font-black" style={{ color: s.numColor, fontFamily: "'JetBrains Mono', monospace" }}>{s.num}</div>
+                <div className="text-xs text-gray-500 mt-1" style={{ fontFamily: "'Fredoka', sans-serif" }}>{s.label}</div>
               </div>
             ))}
           </div>
 
           {/* Nilai Aset */}
           {stats.totalNilai > 0 && (
-            <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-4">
+            <div className="neo-card p-4 flex items-center gap-4" style={{ background: '#EEF3FF' }}>
               <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">💰</div>
               <div className="flex-1">
                 <div className="text-xs text-indigo-500 font-semibold">Jumlah Nilai Aset ICT</div>
@@ -468,7 +471,7 @@ export default function PeminjamanICT() {
             </div>
           )}
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="📦" title="Status Inventori" color="text-indigo-400" />
             <div className="space-y-3 mt-4">
               {items.map(item => (
@@ -496,7 +499,7 @@ export default function PeminjamanICT() {
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="📋" title="Peminjaman Terkini" color="text-indigo-400"
               onMore={() => setTab('senarai')} />
             <div className="space-y-2.5 mt-4">
@@ -521,7 +524,7 @@ export default function PeminjamanICT() {
 
       {/* ── FORM PINJAM ── */}
       {tab === 'pinjam' && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div className="neo-card p-5 space-y-4">
           <div className="text-sm font-bold text-indigo-400 flex items-center gap-2">
             <span>📝</span> Borang Peminjaman Baru
           </div>
@@ -583,7 +586,8 @@ export default function PeminjamanICT() {
           </div>
 
           <button onClick={submitPeminjaman}
-            className="w-full bg-gradient-to-r from-indigo-600 to-violet-500 text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity">
+            className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn"
+            style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
             💾 Simpan Rekod Peminjaman
           </button>
         </div>
@@ -622,7 +626,7 @@ export default function PeminjamanICT() {
               const s = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.dipinjam
               return (
                 <div key={p.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-gray-600 transition-colors"
+                  className="neo-card p-4 flex items-start gap-3 cursor-pointer"
                   onClick={() => setModal({ type: 'detail', data: p })}>
                   <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
                     {getKategoriIcon(p.barang)}
@@ -669,7 +673,7 @@ export default function PeminjamanICT() {
 
           {filteredItems.map(item => (
             <div key={item.id}
-              className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-indigo-300 transition-colors"
+              className="neo-card p-4 flex items-center gap-4 cursor-pointer"
               onClick={() => setModal({ type: 'item', data: item })}>
               <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
                 style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
@@ -718,18 +722,18 @@ export default function PeminjamanICT() {
         <>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { num: servis.filter(s => s.status === 'dilaporkan').length,   label: 'Dilaporkan',   color: 'text-red-500' },
-              { num: servis.filter(s => s.status === 'dalam_servis').length, label: 'Dalam Servis', color: 'text-amber-500' },
-              { num: servis.filter(s => s.status === 'siap').length,         label: 'Siap',         color: 'text-emerald-500' },
+              { num: servis.filter(s => s.status === 'dilaporkan').length,   label: 'Dilaporkan',   bg: '#FEE2E2', numColor: '#DC2626' },
+              { num: servis.filter(s => s.status === 'dalam_servis').length, label: 'Dalam Servis', bg: '#FEF3C7', numColor: '#D97706' },
+              { num: servis.filter(s => s.status === 'siap').length,         label: 'Siap',         bg: '#DCFCE7', numColor: '#059669' },
             ].map((s, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
-                <div className={`text-2xl font-black ${s.color}`}>{s.num}</div>
-                <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+              <div key={i} className="neo-card p-4 text-center" style={{ background: s.bg }}>
+                <div className="text-2xl font-black" style={{ color: s.numColor, fontFamily: "'JetBrains Mono', monospace" }}>{s.num}</div>
+                <div className="text-xs text-gray-500 mt-1" style={{ fontFamily: "'Fredoka', sans-serif" }}>{s.label}</div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+          <div className="neo-card p-5 space-y-3">
             <div className="text-sm font-bold text-red-500">🔧 Lapor Barang Rosak / Penyelenggaraan</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -785,7 +789,7 @@ export default function PeminjamanICT() {
             {servis.map(s => {
               const sc = STATUS_SERVIS[s.status] ?? STATUS_SERVIS.dilaporkan
               return (
-                <div key={s.id} className="bg-white border border-gray-200 rounded-2xl p-4">
+                <div key={s.id} className="neo-card p-4">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔧</div>
                     <div className="flex-1 min-w-0">
@@ -837,15 +841,15 @@ export default function PeminjamanICT() {
       {tab === 'admin' && (
         <AdminGate>
           {/* Admin sub-tabs */}
-          <div className="flex gap-1.5 bg-gray-50 border border-gray-200 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+            style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
             {ADMIN_TABS.map(t => (
               <button key={t.id}
                 onClick={() => { setTabAdmin(t.id); if (t.id === 'log') fetchLog() }}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  tabAdmin === t.id
-                    ? 'bg-white text-indigo-600 shadow-sm border border-gray-200'
-                    : 'text-gray-500 hover:text-gray-900'
-                }`}>
+                className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                style={tabAdmin === t.id
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: 'transparent', color: '#64748B' }}>
                 {t.label}
               </button>
             ))}
@@ -853,7 +857,7 @@ export default function PeminjamanICT() {
 
           {/* Admin: Peminjaman */}
           {tabAdmin === 'peminjaman' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="neo-card p-5">
               <SectionHeader icon="📋" title="Semua Peminjaman" color="text-indigo-400" />
               <div className="space-y-2.5 mt-4">
                 {peminjaman.map(p => {
@@ -880,10 +884,10 @@ export default function PeminjamanICT() {
 
           {/* Admin: Inventori */}
           {tabAdmin === 'inventori' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+            <div className="neo-card p-5 space-y-4">
               <SectionHeader icon="📦" title="Urus Inventori" color="text-indigo-400" />
 
-              <div className="bg-gray-100 rounded-2xl p-4 space-y-3">
+              <div className="rounded-2xl p-4 space-y-3" style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
                 <div className="text-xs font-bold text-indigo-400">➕ Tambah Barang Baru</div>
 
                 <div>
@@ -969,7 +973,8 @@ export default function PeminjamanICT() {
                 </div>
 
                 <button onClick={tambahBarang}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold transition-colors">
+                  className="w-full py-2.5 rounded-xl text-xs font-black neo-btn"
+                  style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
                   ➕ Tambah Barang
                 </button>
               </div>
@@ -1004,7 +1009,7 @@ export default function PeminjamanICT() {
           {/* Admin: Import Excel */}
           {tabAdmin === 'import' && (
             <div className="space-y-4">
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+              <div className="neo-card p-5 space-y-4">
                 <div className="text-sm font-bold text-indigo-400">📥 Import Barang dari Excel</div>
                 <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-2">
                   <div className="text-xs font-bold text-indigo-700">Format lajur yang diterima:</div>
@@ -1076,7 +1081,7 @@ export default function PeminjamanICT() {
 
           {/* Admin: Log Sejarah */}
           {tabAdmin === 'log' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="neo-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeader icon="📜" title="Log Sejarah" color="text-indigo-400" />
                 <button onClick={fetchLog}

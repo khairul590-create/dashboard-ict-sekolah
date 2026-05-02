@@ -287,12 +287,14 @@ export default function TempahanBilik() {
       )}
 
       {/* Tab Nav */}
-      <div className="flex gap-1.5 bg-white border border-gray-200 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+        style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              tab === t.id ? 'bg-sky-600 text-white' : 'text-gray-500 hover:text-gray-900'
-            }`}>
+            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            style={tab === t.id
+              ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+              : { background: 'transparent', color: '#64748B' }}>
             {t.label}
             {t.id === 'admin' && pendingCount > 0 && (
               <span className="ml-1.5 bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>
@@ -307,28 +309,24 @@ export default function TempahanBilik() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { num: bilikList.length, label: 'Jumlah Bilik',   color: 'text-sky-400' },
-              { num: pendingCount,      label: 'Menunggu Lulus', color: 'text-amber-400' },
-              { num: todayCount,        label: 'Tempahan Hari Ini', color: 'text-emerald-400' },
+              { num: bilikList.length, label: 'Jumlah Bilik',       bg: '#DBEAFE', numColor: '#1D4ED8' },
+              { num: pendingCount,      label: 'Menunggu Lulus',     bg: '#FEF3C7', numColor: '#D97706' },
+              { num: todayCount,        label: 'Tempahan Hari Ini',  bg: '#DCFCE7', numColor: '#059669' },
             ].map((s, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
-                <div className={`text-3xl font-black ${s.color}`}>{s.num}</div>
+              <div key={i} className="neo-card p-5 text-center animate-fade-up" style={{ background: s.bg }}>
+                <div className="text-3xl font-black" style={{ color: s.numColor, fontFamily: "'JetBrains Mono', monospace" }}>{s.num}</div>
                 <div className="text-xs text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           {/* Room Grid */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="🏫" title="Status Bilik Khas" color="text-sky-400" />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
               {bilikList.map(b => {
                 const status = getRoomStatus(b.nama)
-                const styles = {
-                  available: 'bg-emerald-50 border-emerald-200',
-                  booked:    'bg-red-50 border-red-200',
-                  pending:   'bg-amber-50 border-amber-200',
-                }
+                const roomBg = { available: '#F0FDF4', booked: '#FEF2F2', pending: '#FFFBEB' }
                 const badges = {
                   available: 'bg-emerald-100 text-emerald-700',
                   booked:    'bg-red-100 text-red-700',
@@ -337,7 +335,8 @@ export default function TempahanBilik() {
                 const badgeLabel = { available: 'Kosong', booked: 'Ditempah', pending: 'Tunggu' }
                 return (
                   <div key={b.nama}
-                    className={`border rounded-2xl p-3 cursor-pointer transition-all hover:scale-[1.02] ${styles[status]}`}
+                    className="neo-card p-3 cursor-pointer transition-all hover:scale-[1.02]"
+                    style={{ background: roomBg[status] }}
                     onClick={() => setTab('tempah')}>
                     <div className="text-2xl mb-2">{b.icon}</div>
                     <div className="text-xs font-bold text-gray-900 leading-tight">{b.nama}</div>
@@ -352,14 +351,15 @@ export default function TempahanBilik() {
           </div>
 
           {/* Terkini */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="📋" title="Tempahan Terkini" color="text-sky-400"
               onMore={() => setTab('senarai')} />
             <div className="space-y-2.5 mt-4">
               {tempahan.slice(0, 4).map(t => {
                 const s = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending
                 return (
-                  <div key={t.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 cursor-pointer hover:bg-gray-100"
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl p-3 cursor-pointer transition-all"
+                    style={{ background: '#F0F7FF' }}
                     onClick={() => setModal(t)}>
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
                     <div className="flex-1 min-w-0">
@@ -525,7 +525,7 @@ export default function TempahanBilik() {
 
       {/* ── FORM TEMPAH ── */}
       {tab === 'tempah' && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div className="neo-card p-5 space-y-4">
           <div className="text-sm font-bold text-sky-400 flex items-center gap-2">
             <span>📝</span> Borang Tempahan Bilik Khas
           </div>
@@ -625,7 +625,8 @@ export default function TempahanBilik() {
           </div>
 
           <button onClick={submitTempahan} disabled={!!bilikDitutup}
-            className="w-full bg-gradient-to-r from-sky-600 to-cyan-500 text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">
+            className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
             📤 Hantar Permohonan Tempahan
           </button>
         </div>
@@ -638,11 +639,10 @@ export default function TempahanBilik() {
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             {['semua', 'pending', 'approved', 'rejected'].map(s => (
               <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-all ${
-                  filterStatus === s
-                    ? 'bg-sky-600 text-white border-sky-600'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                }`}>
+                className="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all"
+                style={filterStatus === s
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: '#fff', color: '#64748B', border: '1.5px solid #CBD5E1' }}>
                 {s === 'semua' ? 'Semua' : STATUS_CONFIG[s]?.label}
               </button>
             ))}
@@ -653,7 +653,7 @@ export default function TempahanBilik() {
               const s = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending
               return (
                 <div key={t.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:border-gray-600 transition-colors"
+                  className="neo-card p-4 flex items-start gap-3 cursor-pointer"
                   onClick={() => setModal(t)}>
                   <div className="w-10 h-10 bg-sky-900/40 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🏫</div>
                   <div className="flex-1 min-w-0">
@@ -678,19 +678,20 @@ export default function TempahanBilik() {
       {/* ── ADMIN ── */}
       {tab === 'admin' && (
         <AdminGate>
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <div className="flex items-center justify-between">
               <SectionHeader icon="⏳" title="Menunggu Kelulusan" color="text-amber-400" />
               {pendingCount > 1 && (
                 <button onClick={bulkApprove}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold hover:bg-emerald-500/30 transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+                  style={{ background: '#DCFCE7', color: '#059669', border: '2px solid #111827', boxShadow: '2px 2px 0 #111827' }}>
                   ✅ Luluskan Semua ({pendingCount})
                 </button>
               )}
             </div>
             <div className="space-y-3 mt-4">
               {tempahan.filter(t => t.status === 'pending').map(t => (
-                <div key={t.id} className="bg-gray-100 rounded-2xl p-4">
+                <div key={t.id} className="rounded-2xl p-4" style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🏫</div>
                     <div className="flex-1">
@@ -702,15 +703,18 @@ export default function TempahanBilik() {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button onClick={() => updateStatus(t.id, 'approved')}
-                      className="flex-1 px-3 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold hover:bg-emerald-500/30 transition-colors">
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+                      style={{ background: '#DCFCE7', color: '#059669' }}>
                       ✅ Luluskan
                     </button>
                     <button onClick={() => updateStatus(t.id, 'rejected')}
-                      className="flex-1 px-3 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold hover:bg-red-500/30 transition-colors">
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+                      style={{ background: '#FEE2E2', color: '#DC2626' }}>
                       ❌ Tolak
                     </button>
                     <button onClick={() => deleteTempahan(t.id)}
-                      className="px-3 py-2 bg-red-900/30 text-red-400 border border-red-800/50 rounded-xl text-xs font-bold hover:bg-red-900/60 transition-colors">
+                      className="px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+                      style={{ background: '#FEE2E2', color: '#DC2626' }}>
                       🗑️
                     </button>
                   </div>
@@ -723,13 +727,13 @@ export default function TempahanBilik() {
           </div>
 
           {/* Semua tempahan */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+          <div className="neo-card p-5">
             <SectionHeader icon="📋" title="Semua Tempahan" color="text-sky-400" />
             <div className="space-y-2.5 mt-4">
               {tempahan.map(t => {
                 const s = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending
                 return (
-                  <div key={t.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#F0F7FF' }}>
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setModal(t)}>
                       <div className="text-xs font-semibold text-gray-900 truncate">{t.guru}</div>
@@ -750,7 +754,7 @@ export default function TempahanBilik() {
           </div>
 
           {/* Tutup / Penyelenggaraan Bilik */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="neo-card p-5 space-y-4">
             <SectionHeader icon="🚫" title="Penutupan / Penyelenggaraan Bilik" color="text-red-400" />
 
             {/* Form tambah tutup */}
@@ -813,11 +817,11 @@ export default function TempahanBilik() {
           </div>
 
           {/* Urus Bilik */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="neo-card p-5 space-y-4">
             <SectionHeader icon="🏫" title="Urus Bilik Khas" color="text-sky-400" />
 
             {/* Form tambah bilik */}
-            <div className="bg-gray-100 rounded-2xl p-4 space-y-3">
+            <div className="rounded-2xl p-4 space-y-3" style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
               <div className="text-xs font-bold text-sky-400">➕ Tambah Bilik Baru</div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Nama Bilik *</label>
@@ -841,7 +845,8 @@ export default function TempahanBilik() {
                 </div>
               </div>
               <button onClick={tambahBilik}
-                className="w-full bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-xl text-xs font-bold transition-colors">
+                className="w-full py-2.5 rounded-xl text-xs font-black neo-btn"
+                style={{ background: '#2563EB', color: '#fff' }}>
                 ➕ Tambah Bilik
               </button>
             </div>
@@ -906,7 +911,8 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white border border-gray-200 rounded-t-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-t-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+        style={{ border: '3px solid #111827', borderBottom: 'none' }}>
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
 
         <div className="flex items-center justify-between mb-4">
@@ -917,7 +923,8 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
               setEd({ guru: modal.guru, bilik: modal.bilik, tarikh: modal.tarikh, masa_mula: mula?.trim() || '', masa_tamat: tamat?.trim() || '', tujuan: modal.tujuan || '' })
               setEditMode(true)
             }}
-              className="px-3 py-1.5 bg-sky-50 text-sky-600 border border-sky-200 rounded-xl text-xs font-bold hover:bg-sky-100">
+              className="px-3 py-1.5 rounded-xl text-xs font-bold neo-btn"
+              style={{ background: '#EFF6FF', color: '#2563EB' }}>
               ✏️ Edit
             </button>
           )}
@@ -975,11 +982,13 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
             </div>
             <div className="flex gap-2">
               <button onClick={() => onEdit(modal.id, { ...ed, masa: `${ed.masa_mula}–${ed.masa_tamat}` })}
-                className="flex-1 py-2.5 bg-sky-600 text-white rounded-xl text-xs font-bold hover:bg-sky-700">
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#2563EB', color: '#fff' }}>
                 💾 Simpan
               </button>
               <button onClick={() => { setEditMode(false); setEd(null) }}
-                className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold">
+                className="px-4 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#F1F5F9', color: '#64748B' }}>
                 Batal
               </button>
             </div>
@@ -1002,23 +1011,27 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
             {modal.status === 'pending' && isAdmin && (
               <div className="flex gap-2 mt-4">
                 <button onClick={() => onApprove(modal.id)}
-                  className="flex-1 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold hover:bg-emerald-500/30">
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                  style={{ background: '#DCFCE7', color: '#059669' }}>
                   ✅ Luluskan
                 </button>
                 <button onClick={() => onReject(modal.id)}
-                  className="flex-1 py-2.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold hover:bg-red-500/30">
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                  style={{ background: '#FEE2E2', color: '#DC2626' }}>
                   ❌ Tolak
                 </button>
               </div>
             )}
             {isAdmin && (
               <button onClick={() => onDelete(modal.id)}
-                className="w-full mt-3 border border-red-200 text-red-500 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 transition-colors">
+                className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold neo-btn"
+                style={{ background: '#FEE2E2', color: '#DC2626' }}>
                 🗑️ Padam Rekod
               </button>
             )}
             <button onClick={onClose}
-              className="w-full mt-3 border border-gray-200 text-gray-500 py-2.5 rounded-xl text-sm font-bold">
+              className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold neo-btn"
+              style={{ background: '#F1F5F9', color: '#64748B' }}>
               Tutup
             </button>
           </>
