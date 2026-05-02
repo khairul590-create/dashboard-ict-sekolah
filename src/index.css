@@ -90,6 +90,30 @@
   display: none;
 }
 
+/* Mobile: prevent iOS Safari input zoom (needs font-size >= 16px) */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Tighter neo-card on mobile — reduce shadow so right edge doesn't overflow */
+  .neo-card {
+    box-shadow: 3px 3px 0 #111827;
+  }
+
+  /* Bigger touch targets for buttons */
+  button {
+    min-height: 40px;
+  }
+
+  /* Page-level tab nav sticky on mobile */
+  .tab-nav-sticky {
+    position: sticky;
+    top: 64px;
+    z-index: 30;
+  }
+}
+
 @media print {
   header, nav, aside, .no-print { display: none !important; }
   body { background: white !important; color: black !important; }

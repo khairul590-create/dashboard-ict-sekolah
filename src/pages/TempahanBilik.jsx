@@ -287,7 +287,7 @@ export default function TempahanBilik() {
       )}
 
       {/* Tab Nav */}
-      <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+      <div className="tab-nav-sticky flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
         style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}

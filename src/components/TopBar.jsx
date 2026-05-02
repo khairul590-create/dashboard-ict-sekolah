@@ -7,13 +7,6 @@ const TITLES = {
   '/delima':   '🌺 Pengurusan ID DELIMA',
 }
 
-const MOBILE_NAV = [
-  { to: '/',         label: '🏠 Utama' },
-  { to: '/tempahan', label: '🏫 Bilik' },
-  { to: '/ict',      label: '💻 ICT' },
-  { to: '/delima',   label: '🌺 DELIMA' },
-]
-
 export default function TopBar({ alertCount = 0 }) {
   const { pathname } = useLocation()
   const title = TITLES[pathname] ?? 'Dashboard'
@@ -28,13 +21,16 @@ export default function TopBar({ alertCount = 0 }) {
             <img src="/logo-sekolah.jpg" alt="Logo SK Darau"
               className="w-9 h-9 object-cover block" />
           </div>
-          <div>
-            <div className="font-black leading-tight" style={{ fontFamily: "'Fredoka', sans-serif", fontSize: 18, color: '#111827' }}>{title}</div>
-            <div className="text-xs mt-0.5 italic font-semibold" style={{ color: '#64748B', fontFamily: "'Nunito', sans-serif" }}>
-              SK Darau, Kota Kinabalu &nbsp;•&nbsp;{' '}
+          <div className="min-w-0">
+            <div className="font-black leading-tight truncate" style={{ fontFamily: "'Fredoka', sans-serif", fontSize: 17, color: '#111827' }}>{title}</div>
+            <div className="text-xs mt-0.5 italic font-semibold hidden sm:block" style={{ color: '#64748B', fontFamily: "'Nunito', sans-serif" }}>
+              SK Darau &nbsp;•&nbsp;{' '}
               {new Date().toLocaleDateString('ms-MY', {
                 weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
               })}
+            </div>
+            <div className="text-xs mt-0.5 italic font-semibold sm:hidden" style={{ color: '#64748B', fontFamily: "'Nunito', sans-serif" }}>
+              {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
             </div>
           </div>
         </div>
@@ -62,26 +58,6 @@ export default function TopBar({ alertCount = 0 }) {
         </div>
       </header>
 
-      {/* Mobile nav */}
-      <div className="lg:hidden px-4 pt-3 pb-1">
-        <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
-          style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
-          {MOBILE_NAV.map(t => (
-            <Link key={t.to} to={t.to}
-              className="flex-shrink-0 px-4 py-2 rounded-xl font-bold transition-all"
-              style={{
-                fontFamily: "'Fredoka', sans-serif",
-                fontSize: 13,
-                background: pathname === t.to ? '#2563EB' : 'transparent',
-                color: pathname === t.to ? '#fff' : '#64748B',
-                border: pathname === t.to ? '1.5px solid #111827' : '1.5px solid transparent',
-                boxShadow: pathname === t.to ? '2px 2px 0 #111827' : 'none',
-              }}>
-              {t.label}
-            </Link>
-          ))}
-        </div>
-      </div>
     </>
   )
 }
