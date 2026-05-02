@@ -1,9 +1,14 @@
-export default function StatCard({ num, label, icon, color = 'text-white' }) {
+export default function StatCard({ num, label, icon, bg = '#2563EB' }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-600 transition-colors">
-      <div className="text-2xl mb-2">{icon}</div>
-      <div className={`text-3xl font-black ${color}`}>{num ?? '—'}</div>
-      <div className="text-xs text-gray-400 mt-1 font-medium">{label}</div>
+    <div className="neo-card p-5 animate-bounce-in"
+      style={{ background: bg }}>
+      <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl mb-3"
+        style={{ background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)' }}>
+        {icon}
+      </div>
+      <div className="text-3xl font-black text-white"
+        style={{ fontFamily: "'JetBrains Mono', monospace" }}>{num ?? '—'}</div>
+      <div className="text-xs font-semibold mt-1.5 italic" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
     </div>
   )
 }

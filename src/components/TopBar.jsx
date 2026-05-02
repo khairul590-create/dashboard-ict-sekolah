@@ -20,34 +20,43 @@ export default function TopBar({ alertCount = 0 }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 px-4 lg:px-8 py-4 flex items-center justify-between"
-        style={{ background: 'rgba(238,242,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #E5E7EB' }}>
+      <header className="sticky top-0 z-40 px-4 lg:px-8 py-3.5 flex items-center justify-between"
+        style={{ background: '#FFFFFF', borderBottom: '3px solid #111827' }}>
         <div className="flex items-center gap-3">
-          <img src="https://i.postimg.cc/pdhvk3Q2/images.jpg" alt="Logo SK Darau"
-            className="lg:hidden w-9 h-9 rounded-xl object-cover flex-shrink-0"
-            style={{ border: '1px solid #E5E7EB' }} />
+          <div style={{ border: '2px solid #111827', borderRadius: 12, overflow: 'hidden', boxShadow: '2px 2px 0 #111827', flexShrink: 0 }}
+            className="lg:hidden">
+            <img src="https://i.postimg.cc/pdhvk3Q2/images.jpg" alt="Logo SK Darau"
+              className="w-9 h-9 object-cover block" />
+          </div>
           <div>
-            <div className="text-lg font-bold leading-tight" style={{ color: '#111827' }}>{title}</div>
-            <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>
-              SK Darau, Kota Kinabalu •{' '}
+            <div className="font-black leading-tight" style={{ fontFamily: "'Fredoka', sans-serif", fontSize: 18, color: '#111827' }}>{title}</div>
+            <div className="text-xs mt-0.5 italic font-semibold" style={{ color: '#64748B', fontFamily: "'Nunito', sans-serif" }}>
+              SK Darau, Kota Kinabalu &nbsp;•&nbsp;{' '}
               {new Date().toLocaleDateString('ms-MY', {
                 weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
               })}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/" className="relative w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-colors"
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-2.5">
+          <Link to="/" className="relative w-9 h-9 rounded-xl flex items-center justify-center text-base transition-all"
+            style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
             🔔
             {alertCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold text-white">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center font-black text-white"
+                style={{ border: '1.5px solid #111827' }}>
                 {alertCount}
               </span>
             )}
           </Link>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white"
-            style={{ background: 'linear-gradient(135deg, #4F46E5, #7C3AED)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white"
+            style={{
+              background: '#2563EB',
+              border: '2px solid #111827',
+              boxShadow: '3px 3px 0 #111827',
+              fontFamily: "'Fredoka', sans-serif",
+              fontSize: 13,
+            }}>
             KA
           </div>
         </div>
@@ -56,11 +65,18 @@ export default function TopBar({ alertCount = 0 }) {
       {/* Mobile nav */}
       <div className="lg:hidden px-4 pt-3 pb-1">
         <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+          style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
           {MOBILE_NAV.map(t => (
             <Link key={t.to} to={t.to}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all`}
-              style={{ background: pathname === t.to ? '#4F46E5' : 'transparent', color: pathname === t.to ? '#fff' : '#6B7280' }}>
+              className="flex-shrink-0 px-4 py-2 rounded-xl font-bold transition-all"
+              style={{
+                fontFamily: "'Fredoka', sans-serif",
+                fontSize: 13,
+                background: pathname === t.to ? '#2563EB' : 'transparent',
+                color: pathname === t.to ? '#fff' : '#64748B',
+                border: pathname === t.to ? '1.5px solid #111827' : '1.5px solid transparent',
+                boxShadow: pathname === t.to ? '2px 2px 0 #111827' : 'none',
+              }}>
               {t.label}
             </Link>
           ))}

@@ -109,28 +109,29 @@ export default function DashboardUtama() {
       num: barang.length,
       label: 'Jenis Barang ICT',
       sub: `${dipinjamICT} sedang dipinjam`,
-      color: '#4A9EFF',
+      bg: '#DBEAFE', color: '#1D4ED8',
       icon: '💻',
     },
     {
       num: pendingTempahan + lewatICT,
       label: 'Perlu Tindakan',
       sub: pendingTempahan + lewatICT > 0 ? 'Ada item mendesak' : 'Tiada tindakan perlu',
-      color: pendingTempahan + lewatICT > 0 ? '#E74C3C' : '#2ECC71',
+      bg: pendingTempahan + lewatICT > 0 ? '#FEF3C7' : '#DCFCE7',
+      color: pendingTempahan + lewatICT > 0 ? '#D97706' : '#059669',
       icon: '⚡',
     },
     {
       num: guruAktif + muridAktif,
       label: 'Pengguna DELIMA',
       sub: `${guruAktif} guru • ${muridAktif} murid`,
-      color: '#9B59B6',
+      bg: '#EDE9FE', color: '#7C3AED',
       icon: '👥',
     },
     {
       num: approvedTempahan,
       label: 'Tempahan Diluluskan',
       sub: `${todayTempahan} tempahan hari ini`,
-      color: '#2ECC71',
+      bg: '#DCFCE7', color: '#059669',
       icon: '✅',
     },
   ]
@@ -152,15 +153,15 @@ export default function DashboardUtama() {
       {alerts.length > 0 && (
         <div className="space-y-2.5">
           {alerts.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-              style={{ background: a.bg, border: `1px solid ${a.border}` }}>
+            <div key={i} className="neo-card flex items-center gap-3 px-4 py-3 animate-slide-up"
+              style={{ background: a.bg, animationDelay: `${i * 0.1}s` }}>
               <span className="text-xl flex-shrink-0">{a.icon}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold" style={{ color: '#111827' }}>{a.title}</div>
-                <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>{a.desc}</div>
+                <div className="text-sm font-black" style={{ fontFamily: "'Fredoka', sans-serif", color: '#111827' }}>{a.title}</div>
+                <div className="text-xs mt-0.5 italic font-semibold" style={{ color: '#64748B' }}>{a.desc}</div>
               </div>
               <button onClick={() => navigate(a.route)}
-                className="text-xs font-bold px-3 py-1.5 rounded-lg flex-shrink-0 transition-opacity hover:opacity-80"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg flex-shrink-0 neo-btn"
                 style={{ background: a.color, color: '#fff' }}>
                 Urus →
               </button>
@@ -172,15 +173,15 @@ export default function DashboardUtama() {
       {/* ── KPI CARDS ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((k, i) => (
-          <div key={i} className="rounded-2xl p-5 transition-all hover:scale-[1.01]"
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-2xl">{k.icon}</span>
-              <div className="w-2 h-2 rounded-full mt-1" style={{ background: k.color }} />
+          <div key={i} className="neo-card animate-fade-up p-5"
+            style={{ background: k.bg, animationDelay: `${i * 0.07}s` }}>
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl mb-3"
+              style={{ background: 'rgba(255,255,255,0.6)', border: '2px solid #111827' }}>
+              {k.icon}
             </div>
-            <div className="text-3xl font-black" style={{ fontFamily: 'Manrope, Inter, sans-serif', color: '#111827' }}>{k.num}</div>
-            <div className="text-xs font-semibold mt-1" style={{ color: '#374151' }}>{k.label}</div>
-            <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>{k.sub}</div>
+            <div className="text-3xl font-black" style={{ fontFamily: "'JetBrains Mono', monospace", color: k.color }}>{k.num}</div>
+            <div className="text-xs font-black mt-1" style={{ fontFamily: "'Fredoka', sans-serif", color: '#111827', fontSize: 13 }}>{k.label}</div>
+            <div className="text-xs mt-0.5 italic font-semibold" style={{ color: '#64748B' }}>{k.sub}</div>
           </div>
         ))}
       </div>
@@ -189,8 +190,7 @@ export default function DashboardUtama() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Tempahan terkini */}
-        <div className="rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-semibold" style={{ color: '#111827' }}>🏫 Tempahan Terkini</div>
             <button onClick={() => navigate('/tempahan')}
@@ -206,11 +206,11 @@ export default function DashboardUtama() {
               const c = colors[t.status] ?? '#F5A623'
               return (
                 <div key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
-                  style={{ background: '#F9FAFB' }}>
+                  style={{ background: '#F0F7FF' }}>
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-white truncate">{t.guru}</div>
-                    <div className="text-xs truncate" style={{ color: '#6B7280' }}>{t.bilik} • {t.masa}</div>
+                    <div className="text-xs font-semibold truncate" style={{ color: '#1E3A8A' }}>{t.guru}</div>
+                    <div className="text-xs truncate italic" style={{ color: '#64748B' }}>{t.bilik} • {t.masa}</div>
                   </div>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                     style={{ background: c + '22', color: c }}>
@@ -226,8 +226,7 @@ export default function DashboardUtama() {
         </div>
 
         {/* ICT terkini */}
-        <div className="rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-semibold" style={{ color: '#111827' }}>💻 Peminjaman ICT Terkini</div>
             <button onClick={() => navigate('/ict')}
@@ -243,11 +242,11 @@ export default function DashboardUtama() {
               const c = colors[p.status] ?? '#4A9EFF'
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-                  style={{ background: '#F9FAFB' }}>
+                  style={{ background: '#F0F7FF' }}>
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-white truncate">{p.peminjam}</div>
-                    <div className="text-xs truncate" style={{ color: '#6B7280' }}>{p.barang} • Pulang: {p.tarikh_pulang}</div>
+                    <div className="text-xs font-semibold truncate" style={{ color: '#1E3A8A' }}>{p.peminjam}</div>
+                    <div className="text-xs truncate italic" style={{ color: '#64748B' }}>{p.barang} • Pulang: {p.tarikh_pulang}</div>
                   </div>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                     style={{ background: c + '22', color: c }}>
@@ -295,8 +294,7 @@ export default function DashboardUtama() {
           },
         ].map((s, i) => (
           <div key={i} onClick={() => navigate(s.route)}
-            className="rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.01]"
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            className="neo-card overflow-hidden cursor-pointer">
             <div className="p-5" style={{ background: s.gradient }}>
               <div className="flex items-start justify-between">
                 <span className="text-3xl">{s.icon}</span>
@@ -308,8 +306,8 @@ export default function DashboardUtama() {
               style={{ borderTop: '1px solid var(--border)', borderColor: 'rgba(255,255,255,0.06)' }}>
               {s.stats.map((st, j) => (
                 <div key={j} className="text-center px-2">
-                  <div className="text-xl font-black" style={{ fontFamily: 'Manrope, sans-serif', color: '#111827' }}>{st.num}</div>
-                  <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>{st.label}</div>
+                  <div className="text-xl font-black" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#111827' }}>{st.num}</div>
+                  <div className="text-xs mt-0.5 italic font-semibold" style={{ color: '#64748B' }}>{st.label}</div>
                 </div>
               ))}
             </div>
@@ -320,8 +318,7 @@ export default function DashboardUtama() {
       {/* ── CHARTS ROW 1: Trend Tempahan + Trend Peminjaman ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        <div className="rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-sm font-semibold" style={{ color: '#111827' }}>Trend Tempahan Bilik</div>
@@ -347,8 +344,7 @@ export default function DashboardUtama() {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-sm font-semibold" style={{ color: '#111827' }}>Trend Peminjaman ICT</div>
@@ -378,8 +374,7 @@ export default function DashboardUtama() {
       {/* ── CHARTS ROW 2: Bar Inventori + Donut DELIMA ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        <div className="lg:col-span-2 rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card lg:col-span-2 p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-sm font-semibold" style={{ color: '#111827' }}>Status Inventori ICT</div>
@@ -408,8 +403,7 @@ export default function DashboardUtama() {
           )}
         </div>
 
-        <div className="rounded-2xl p-5"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="neo-card p-5">
           <div className="mb-4">
             <div className="text-sm font-semibold" style={{ color: '#111827' }}>Pengguna DELIMA</div>
             <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>Taburan status</div>
@@ -449,7 +443,7 @@ export default function DashboardUtama() {
       </div>
 
       {/* ── LAPORAN BULANAN ── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+      <div className="neo-card overflow-hidden">
         <div className="flex items-center justify-between p-5 cursor-pointer" onClick={() => setShowLaporan(v => !v)}>
           <div className="flex items-center gap-3">
             <span className="text-xl">📊</span>

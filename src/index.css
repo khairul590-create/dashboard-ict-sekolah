@@ -1,35 +1,86 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700;1,800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #EEF2FF;
+  --bg-primary: #EEF3FF;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #F5F7FF;
-  --border: #E5E7EB;
+  --bg-card-hover: #F0F5FF;
+  --border: #111827;
+  --border-light: #DBEAFE;
   --text-primary: #111827;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
-  --accent-blue: #4F46E5;
-  --accent-green: #059669;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --accent-blue: #2563EB;
+  --accent-yellow: #FFD166;
+  --accent-green: #06D6A0;
   --accent-red: #DC2626;
-  --accent-amber: #D97706;
   --accent-purple: #7C3AED;
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
-  --shadow-hover: 0 4px 24px rgba(0,0,0,0.10);
-  --radius-card: 16px;
+  --shadow-neo: 4px 4px 0 #111827;
+  --shadow-neo-sm: 3px 3px 0 #111827;
+  --radius-card: 20px;
+  --font-display: 'Fredoka', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 @layer base {
   body {
     @apply antialiased;
-    font-family: 'Inter', sans-serif;
-    background-color: #EEF2FF;
+    font-family: 'Nunito', sans-serif;
+    background-color: #EEF3FF;
     color: #111827;
   }
 }
+
+/* Neo-brutalist card */
+.neo-card {
+  border: 3px solid #111827;
+  box-shadow: 4px 4px 0 #111827;
+  border-radius: 20px;
+  background: #FFFFFF;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.neo-card:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #111827;
+}
+
+/* Neo button */
+.neo-btn {
+  border: 2px solid #111827;
+  box-shadow: 3px 3px 0 #111827;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.neo-btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #111827;
+}
+.neo-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0px 0px 0 #111827;
+}
+
+/* Animations */
+@keyframes bounceIn {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes slideUp {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeUp {
+  from { transform: translateY(6px);  opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.animate-bounce-in { animation: bounceIn 0.4s ease forwards; }
+.animate-slide-up  { animation: slideUp  0.35s ease forwards; }
+.animate-fade-up   { animation: fadeUp   0.3s ease forwards; }
 
 .scrollbar-hide {
   -ms-overflow-style: none;
