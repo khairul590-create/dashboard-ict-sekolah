@@ -13,6 +13,35 @@ const STATUS_CONFIG = {
   rejected: { dot: 'bg-red-400',     badge: 'bg-red-100 text-red-700',         label: 'Tolak',  btn: 'bg-red-900/40 border-red-700 text-red-400' },
 }
 
+const SYARAT_TEMPAHAN = [
+  'Saya bertanggungjawab menjaga kebersihan dan kekemasan bilik sepanjang tempoh penggunaan.',
+  'Saya akan mengembalikan semua peralatan dan kerusi meja ke tempat asal selepas selesai.',
+  'Saya akan melaporkan sebarang kerosakan atau kehilangan kepada Guru ICT dengan segera.',
+  'Saya tidak akan membenarkan pelajar menggunakan bilik tanpa pengawasan guru pada setiap masa.',
+  'Saya akan mematikan semua peralatan elektrik (projektor, komputer, AC) sebelum meninggalkan bilik.',
+  'Saya akan mematuhi masa tempahan yang ditetapkan dan tidak melebihi waktu yang diluluskan.',
+  'Saya faham bahawa kelulusan tempahan adalah tertakluk kepada budi bicara pentadbir.',
+]
+
+const STAF_ICT = [
+  {
+    nama: 'En. Khairul Azwani bin Haji Ahinin',
+    jawatan: 'Guru ICT / Pentadbir Sistem',
+    tugas: 'Penyelarasan ICT, Penyelenggaraan Sistem, Tempahan Bilik',
+    icon: '👨‍💻',
+    warna: '#EEF3FF',
+    border: '#2563EB',
+  },
+  {
+    nama: 'Pegawai Teknologi Maklumat',
+    jawatan: 'Pegawai Teknologi Maklumat (PTM)',
+    tugas: 'Infrastruktur Rangkaian, Perkakasan, Keselamatan Sistem',
+    icon: '🖥️',
+    warna: '#F0FDF4',
+    border: '#059669',
+  },
+]
+
 // Slot masa 30 minit ikut waktu sekolah
 const SLOT_PAGI = [
   { masa: '06:50–07:20', label: 'P1' },
@@ -98,6 +127,12 @@ export default function TempahanBilik() {
   const [bilikTutup, setBilikTutup] = useState([])
   const [formTutup, setFormTutup] = useState({ bilik: '', tarikh_mula: TODAY, tarikh_tamat: TODAY, sebab: '' })
 
+  const [syaratModal, setSyaratModal] = useState(false)
+  const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
+
+  const [takwimList, setTakwimList] = useState([])
+  const [formTakwim, setFormTakwim] = useState({ tajuk: '', tarikh: TODAY, jenis: 'program', catatan: '' })
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2800)
@@ -122,6 +157,28 @@ export default function TempahanBilik() {
   async function fetchBilikTutup() {
     const { data } = await supabase.from('bilik_tutup').select('*').order('tarikh_mula')
     setBilikTutup(data ?? [])
+  }
+
+  async function fetchTakwim() {
+    const { data } = await supabase.from('takwim_ict').select('*').order('tarikh')
+    setTakwimList(data ?? [])
+  }
+
+  async function tambahTakwim() {
+    if (!formTakwim.tajuk || !formTakwim.tarikh) {
+      showToast('Sila lengkapkan tajuk dan tarikh!', 'error'); return
+    }
+    const { error } = await supabase.from('takwim_ict').insert([formTakwim])
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    setFormTakwim({ tajuk: '', tarikh: TODAY, jenis: 'program', catatan: '' })
+    showToast('✅ Acara berjaya ditambah!')
+    fetchTakwim()
+  }
+
+  async function hapusTakwim(id) {
+    await supabase.from('takwim_ict').delete().eq('id', id)
+    showToast('🗑️ Acara dipadam!')
+    fetchTakwim()
   }
 
   async function tambahTutup() {
@@ -167,7 +224,7 @@ export default function TempahanBilik() {
     fetchBilik()
   }
 
-  useEffect(() => { fetchTempahan(); fetchBilik(); fetchBilikTutup() }, [])
+  useEffect(() => { fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim() }, [])
 
   const pendingCount = tempahan.filter(t => t.status === 'pending').length
   const todayCount   = tempahan.filter(t => t.tarikh === TODAY).length
@@ -233,7 +290,7 @@ export default function TempahanBilik() {
     return ends.filter(e => toMins(e) > toMins(form.masa_mula))
   })()
 
-  async function submitTempahan() {
+  function submitTempahan() {
     if (!form.guru || !form.bilik || !form.tarikh || !form.masa_mula || !form.masa_tamat) {
       showToast('Sila lengkapkan semua maklumat!', 'error'); return
     }
@@ -252,14 +309,20 @@ export default function TempahanBilik() {
     if (slotKonflik) {
       showToast(`⚠️ Masa ini sudah ditempah oleh ${slotKonflik.guru}!`, 'error'); return
     }
+    setSyaratChecked(Array(SYARAT_TEMPAHAN.length).fill(false))
+    setSyaratModal(true)
+  }
+
+  async function doInsert() {
     const masa = `${form.masa_mula}–${form.masa_tamat}`
     const { error } = await supabase.from('tempahan_bilik').insert([{
       guru: form.guru, bilik: form.bilik, tarikh: form.tarikh,
       masa, tujuan: form.tujuan, status: 'pending',
     }])
-    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    if (error) { showToast('Ralat: ' + error.message, 'error'); setSyaratModal(false); return }
     const tarikhDitempah = form.tarikh
     setForm({ guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '' })
+    setSyaratModal(false)
     showToast('✅ Tempahan berjaya dihantar!')
     await fetchTempahan()
     setJadualDate(tarikhDitempah)
@@ -299,6 +362,7 @@ export default function TempahanBilik() {
     { id: 'jadual',    label: '📅 Jadual' },
     { id: 'tempah',    label: '➕ Tempah' },
     { id: 'senarai',   label: '📋 Senarai' },
+    { id: 'maklumat',  label: 'ℹ️ Maklumat' },
     { id: 'admin',     label: '⚙️ Admin' },
   ]
 
@@ -921,6 +985,206 @@ export default function TempahanBilik() {
             </div>
           </div>
         </AdminGate>
+      )}
+
+      {/* ── MAKLUMAT ── */}
+      {tab === 'maklumat' && (
+        <div className="space-y-5">
+          {/* Staf ICT */}
+          <div className="neo-card p-5 space-y-4">
+            <div className="text-sm font-bold text-indigo-500 flex items-center gap-2">
+              <span>👥</span> Staf & Pegawai Bertanggungjawab
+            </div>
+            <div className="space-y-3">
+              {STAF_ICT.map((s, i) => (
+                <div key={i} className="rounded-2xl p-4 flex items-start gap-4"
+                  style={{ background: s.warna, border: `2px solid ${s.border}` }}>
+                  <div className="text-3xl w-12 h-12 flex items-center justify-center rounded-xl bg-white/60 flex-shrink-0">
+                    {s.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black text-gray-900 leading-tight">{s.nama}</div>
+                    <div className="text-xs font-bold mt-0.5" style={{ color: s.border }}>{s.jawatan}</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">{s.tugas}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Takwim ICT */}
+          <div className="neo-card p-5 space-y-4">
+            <div className="text-sm font-bold text-sky-500 flex items-center gap-2">
+              <span>📆</span> Takwim ICT
+            </div>
+
+            {/* Admin: form tambah acara */}
+            {isAdmin && (
+              <div className="rounded-2xl p-4 space-y-3" style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
+                <div className="text-xs font-bold text-sky-500">➕ Tambah Acara / Program</div>
+                <input value={formTakwim.tajuk}
+                  onChange={e => setFormTakwim(f => ({ ...f, tajuk: e.target.value }))}
+                  placeholder="Tajuk acara / program..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Tarikh</label>
+                    <input type="date" value={formTakwim.tarikh}
+                      onChange={e => setFormTakwim(f => ({ ...f, tarikh: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Jenis</label>
+                    <select value={formTakwim.jenis}
+                      onChange={e => setFormTakwim(f => ({ ...f, jenis: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400">
+                      <option value="program">🎯 Program</option>
+                      <option value="latihan">📚 Latihan / Kursus</option>
+                      <option value="mesyuarat">🗣️ Mesyuarat</option>
+                      <option value="penyelenggaraan">🔧 Penyelenggaraan</option>
+                      <option value="lain">📌 Lain-lain</option>
+                    </select>
+                  </div>
+                </div>
+                <input value={formTakwim.catatan}
+                  onChange={e => setFormTakwim(f => ({ ...f, catatan: e.target.value }))}
+                  placeholder="Catatan tambahan (pilihan)..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+                <button onClick={tambahTakwim}
+                  className="w-full py-2.5 rounded-xl text-xs font-black neo-btn"
+                  style={{ background: '#2563EB', color: '#fff' }}>
+                  ➕ Tambah Acara
+                </button>
+              </div>
+            )}
+
+            {/* Senarai takwim */}
+            {takwimList.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-xs">Tiada acara dalam takwim</div>
+            ) : (
+              <div className="space-y-2">
+                {takwimList.map(t => {
+                  const jenisConfig = {
+                    program:        { icon: '🎯', bg: '#EEF3FF', color: '#2563EB' },
+                    latihan:        { icon: '📚', bg: '#F0FDF4', color: '#059669' },
+                    mesyuarat:      { icon: '🗣️', bg: '#FFFBEB', color: '#D97706' },
+                    penyelenggaraan:{ icon: '🔧', bg: '#FFF1F2', color: '#E11D48' },
+                    lain:           { icon: '📌', bg: '#F8FAFC', color: '#64748B' },
+                  }[t.jenis] ?? { icon: '📌', bg: '#F8FAFC', color: '#64748B' }
+                  return (
+                    <div key={t.id} className="rounded-xl p-3 flex items-start gap-3"
+                      style={{ background: jenisConfig.bg, border: `1.5px solid ${jenisConfig.color}22` }}>
+                      <span className="text-lg leading-none mt-0.5 flex-shrink-0">{jenisConfig.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-gray-900 leading-tight">{t.tajuk}</div>
+                        <div className="text-xs font-semibold mt-0.5" style={{ color: jenisConfig.color }}>
+                          📅 {t.tarikh}
+                        </div>
+                        {t.catatan && <div className="text-xs text-gray-500 mt-0.5 italic">"{t.catatan}"</div>}
+                      </div>
+                      {isAdmin && (
+                        <button onClick={() => hapusTakwim(t.id)}
+                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Syarat & Peraturan */}
+          <div className="neo-card p-5 space-y-3">
+            <div className="text-sm font-bold text-amber-500 flex items-center gap-2">
+              <span>📋</span> Syarat & Peraturan Penggunaan Bilik
+            </div>
+            <div className="space-y-2">
+              {SYARAT_TEMPAHAN.map((s, i) => (
+                <div key={i} className="flex items-start gap-2.5 text-xs text-gray-700 py-1.5 border-b border-gray-100 last:border-0">
+                  <span className="text-amber-400 font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
+                  <span className="leading-relaxed">{s}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL SYARAT ── */}
+      {syaratModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden"
+            style={{ background: '#fff', border: '2px solid #111827', boxShadow: '4px 4px 0 #111827', maxHeight: '90dvh', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 flex-shrink-0" style={{ background: '#1E3A8A' }}>
+              <div className="text-base font-black text-white flex items-center gap-2">
+                <span>📋</span> Akuan & Persetujuan Syarat
+              </div>
+              <div className="text-xs text-blue-200 mt-1">
+                Sila baca dan tanda semua syarat sebelum menghantar tempahan.
+              </div>
+            </div>
+
+            {/* Syarat list — scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {SYARAT_TEMPAHAN.map((s, i) => (
+                <label key={i}
+                  className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                    syaratChecked[i] ? 'bg-emerald-50 border-2 border-emerald-300' : 'bg-gray-50 border-2 border-gray-200'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    checked={syaratChecked[i]}
+                    onChange={() => setSyaratChecked(prev => {
+                      const next = [...prev]; next[i] = !next[i]; return next
+                    })}
+                    className="mt-0.5 w-4 h-4 accent-emerald-600 flex-shrink-0 cursor-pointer" />
+                  <span className={`text-xs leading-relaxed ${syaratChecked[i] ? 'text-emerald-800' : 'text-gray-700'}`}>
+                    <span className="font-bold mr-1">{i + 1}.</span>{s}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-5 pb-5 pt-3 space-y-2.5 flex-shrink-0 border-t border-gray-100">
+              {/* Pilih Semua */}
+              <button
+                onClick={() => setSyaratChecked(
+                  syaratChecked.every(Boolean)
+                    ? Array(SYARAT_TEMPAHAN.length).fill(false)
+                    : Array(SYARAT_TEMPAHAN.length).fill(true)
+                )}
+                className="w-full py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
+                style={{ borderColor: '#111827', background: syaratChecked.every(Boolean) ? '#FEE2E2' : '#EEF3FF', color: syaratChecked.every(Boolean) ? '#DC2626' : '#2563EB' }}>
+                {syaratChecked.every(Boolean) ? '✕ Nyahpilih Semua' : '☑️ Pilih Semua'}
+              </button>
+
+              {/* Progress indicator */}
+              <div className="text-center text-xs text-gray-500 font-medium">
+                {syaratChecked.filter(Boolean).length} / {SYARAT_TEMPAHAN.length} syarat diakui
+              </div>
+
+              {/* Hantar */}
+              <button
+                onClick={doInsert}
+                disabled={!syaratChecked.every(Boolean)}
+                className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: '#059669', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
+                ✅ Saya Bersetuju & Hantar Tempahan
+              </button>
+              <button
+                onClick={() => setSyaratModal(false)}
+                className="w-full py-2.5 rounded-xl text-xs font-bold"
+                style={{ background: '#F1F5F9', color: '#64748B', border: '1.5px solid #CBD5E1' }}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── MODAL ── */}
