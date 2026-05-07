@@ -190,6 +190,8 @@ export default function TempahanBilik() {
   const masaRange = form.masa_mula && form.masa_tamat
     ? `${form.masa_mula}–${form.masa_tamat}` : null
 
+  const normNama = s => s?.trim().toLowerCase()
+
   const slotKonflik = masaRange && form.bilik && form.tarikh
     ? tempahan.find(t =>
         t.bilik === form.bilik &&
@@ -198,6 +200,26 @@ export default function TempahanBilik() {
         hasOverlap(t.masa, masaRange)
       )
     : null
+
+  // Guru cuba tempah masa yang sama (bilik mana pun)
+  const guruKonflik = masaRange && form.guru && form.tarikh
+    ? tempahan.find(t =>
+        normNama(t.guru) === normNama(form.guru) &&
+        t.tarikh === form.tarikh &&
+        t.status !== 'rejected' &&
+        hasOverlap(t.masa, masaRange)
+      )
+    : null
+
+  // Had 7 tempahan aktif (pending + approved) per guru
+  const TEMPAHAN_MAX = 7
+  const guruAktifCount = form.guru
+    ? tempahan.filter(t =>
+        normNama(t.guru) === normNama(form.guru) &&
+        (t.status === 'pending' || t.status === 'approved')
+      ).length
+    : 0
+  const hadTempahanCecah = guruAktifCount >= TEMPAHAN_MAX
 
   const bilikDitutup = form.bilik && form.tarikh
     ? getTutupInfo(form.bilik, form.tarikh)
@@ -220,6 +242,12 @@ export default function TempahanBilik() {
     }
     if (bilikDitutup) {
       showToast(`🚫 ${form.bilik} ditutup sehingga ${bilikDitutup.tarikh_tamat}!`, 'error'); return
+    }
+    if (hadTempahanCecah) {
+      showToast(`⚠️ Had ${TEMPAHAN_MAX} tempahan aktif dicapai! Tunggu keputusan admin dahulu.`, 'error'); return
+    }
+    if (guruKonflik) {
+      showToast(`⚠️ Anda sudah ada tempahan pada masa ini di ${guruKonflik.bilik}!`, 'error'); return
     }
     if (slotKonflik) {
       showToast(`⚠️ Masa ini sudah ditempah oleh ${slotKonflik.guru}!`, 'error'); return
@@ -597,8 +625,32 @@ export default function TempahanBilik() {
             </div>
           )}
 
+          {/* Had tempahan aktif indicator */}
+          {form.guru && guruAktifCount > 0 && (
+            <div className={`rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
+              hadTempahanCecah
+                ? 'bg-red-50 border border-red-200 text-red-600'
+                : guruAktifCount >= TEMPAHAN_MAX - 1
+                ? 'bg-amber-50 border border-amber-200 text-amber-700'
+                : 'bg-sky-50 border border-sky-200 text-sky-700'
+            }`}>
+              {hadTempahanCecah
+                ? <>🔴 Had dicapai: <span className="font-bold">{guruAktifCount}/{TEMPAHAN_MAX}</span> tempahan aktif. Tunggu keputusan admin.</>
+                : <>{guruAktifCount >= TEMPAHAN_MAX - 1 ? '🟡' : '🔵'} Tempahan aktif: <span className="font-bold">{guruAktifCount}/{TEMPAHAN_MAX}</span></>
+              }
+            </div>
+          )}
+
+          {/* Guru konflik masa (bilik lain) */}
+          {guruKonflik && !hadTempahanCecah && (
+            <div className="rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700">
+              🟠 Anda sudah ada tempahan pada masa ini di <span className="font-bold ml-1">{guruKonflik.bilik}</span>
+              {guruKonflik.status === 'pending' ? ' (menunggu lulus)' : ''}
+            </div>
+          )}
+
           {/* Durasi + konflik indicator */}
-          {form.masa_mula && form.masa_tamat && !bilikDitutup && (
+          {form.masa_mula && form.masa_tamat && !bilikDitutup && !guruKonflik && (
             <div className={`rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
               slotKonflik
                 ? 'bg-red-50 border border-red-200 text-red-600'
@@ -624,7 +676,7 @@ export default function TempahanBilik() {
             ℹ️ Permohonan akan disemak oleh pentadbir. Hubungi Guru ICT terus sekiranya terdapat keperluan mendesak.
           </div>
 
-          <button onClick={submitTempahan} disabled={!!bilikDitutup}
+          <button onClick={submitTempahan} disabled={!!bilikDitutup || hadTempahanCecah || !!guruKonflik}
             className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
             📤 Hantar Permohonan Tempahan
