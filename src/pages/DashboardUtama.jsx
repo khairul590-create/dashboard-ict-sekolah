@@ -68,7 +68,7 @@ export default function DashboardUtama() {
   const TODAY = new Date().toISOString().slice(0, 10)
   const pendingTempahan = tempahan.filter(t => t.status === 'pending').length
   const approvedTempahan = tempahan.filter(t => t.status === 'approved').length
-  const lewatICT = peminjaman.filter(p => p.status === 'lewat').length
+  const lewatICT = peminjaman.filter(p => p.status === 'lewat' || (p.status === 'dipinjam' && p.tarikh_pulang < TODAY)).length
   const dipinjamICT = peminjaman.filter(p => p.status === 'dipinjam').length
   const guruAktif = guru.filter(g => g.status === 'aktif').length
   const muridAktif = murid.filter(m => m.status === 'aktif').length

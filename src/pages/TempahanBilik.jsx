@@ -11,6 +11,7 @@ const STATUS_CONFIG = {
   approved: { dot: 'bg-emerald-400', badge: 'bg-emerald-100 text-emerald-700', label: 'Lulus',  btn: 'bg-emerald-900/40 border-emerald-700 text-emerald-400' },
   pending:  { dot: 'bg-amber-400',   badge: 'bg-amber-100 text-amber-700',     label: 'Tunggu', btn: 'bg-amber-900/40 border-amber-700 text-amber-400' },
   rejected: { dot: 'bg-red-400',     badge: 'bg-red-100 text-red-700',         label: 'Tolak',  btn: 'bg-red-900/40 border-red-700 text-red-400' },
+  dibatal:  { dot: 'bg-gray-400',    badge: 'bg-gray-100 text-gray-500',       label: 'Dibatal', btn: 'bg-gray-900/40 border-gray-700 text-gray-400' },
 }
 
 const SYARAT_TEMPAHAN = [
@@ -120,8 +121,14 @@ export default function TempahanBilik() {
   const [jadualDate, setJadualDate] = useState(TODAY)
 
   const [form, setForm] = useState({
-    guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '',
+    guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '', no_telefon: '',
   })
+
+  const [statusCari, setStatusCari] = useState('')
+  const [statusResult, setStatusResult] = useState(null)
+  const [searchBilik, setSearchBilik] = useState('')
+  const [showBilikDropdown, setShowBilikDropdown] = useState(false)
+  const [waModal, setWaModal] = useState(null)
 
   const [formBilik, setFormBilik] = useState({ nama: '', icon: '🏫', kapasiti: '30 pelajar' })
   const [bilikTutup, setBilikTutup] = useState([])
@@ -226,6 +233,8 @@ export default function TempahanBilik() {
 
   useEffect(() => { fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim() }, [])
 
+  useEffect(() => { if (form.bilik) setSearchBilik(form.bilik) }, [form.bilik])
+
   const pendingCount = tempahan.filter(t => t.status === 'pending').length
   const todayCount   = tempahan.filter(t => t.tarikh === TODAY).length
 
@@ -327,11 +336,12 @@ export default function TempahanBilik() {
     const masa = `${form.masa_mula}–${form.masa_tamat}`
     const { error } = await supabase.from('tempahan_bilik').insert([{
       guru: form.guru, bilik: form.bilik, tarikh: form.tarikh,
-      masa, tujuan: form.tujuan, status: 'pending',
+      masa, tujuan: form.tujuan, no_telefon: form.no_telefon || null, status: 'pending',
     }])
     if (error) { showToast('Ralat: ' + error.message, 'error'); setSyaratModal(false); return }
     const tarikhDitempah = form.tarikh
-    setForm({ guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '' })
+    setForm({ guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '', no_telefon: '' })
+    setSearchBilik('')
     setSyaratModal(false)
     showToast('✅ Tempahan berjaya dihantar!')
     await fetchTempahan()
@@ -354,13 +364,24 @@ export default function TempahanBilik() {
     fetchTempahan()
   }
 
-  async function updateStatus(id, status) {
-    const { error } = await supabase
-      .from('tempahan_bilik').update({ status }).eq('id', id)
+  async function batalTempahan(id) {
+    const { error } = await supabase.from('tempahan_bilik').update({ status: 'dibatal' }).eq('id', id)
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
-    showToast(status === 'approved' ? '✅ Tempahan diluluskan!' : '❌ Tempahan ditolak!')
-    setModal(null)
+    showToast('✅ Tempahan berjaya dibatalkan.')
     fetchTempahan()
+  }
+
+  async function updateStatus(id, status) {
+    const rec = tempahan.find(t => t.id === id)
+    const { error } = await supabase.from('tempahan_bilik').update({ status }).eq('id', id)
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    setModal(null)
+    await fetchTempahan()
+    if (rec?.no_telefon) {
+      setWaModal({ ...rec, status })
+    } else {
+      showToast(status === 'approved' ? '✅ Tempahan diluluskan!' : '❌ Tempahan ditolak!')
+    }
   }
 
   const filtered = filterStatus === 'semua'
@@ -371,6 +392,7 @@ export default function TempahanBilik() {
     { id: 'dashboard', label: '🏠 Utama' },
     { id: 'jadual',    label: '📅 Jadual' },
     { id: 'tempah',    label: '➕ Tempah' },
+    { id: 'status',    label: '📱 Status' },
     { id: 'senarai',   label: '📋 Senarai' },
     { id: 'maklumat',  label: 'ℹ️ Maklumat' },
     { id: 'admin',     label: '⚙️ Admin' },
@@ -644,13 +666,43 @@ export default function TempahanBilik() {
             </div>
           ))}
 
-          <div>
+          <div className="relative">
             <label className="block text-xs font-semibold text-sky-400 mb-1.5">Pilih Bilik *</label>
-            <select value={form.bilik} onChange={e => setForm(p => ({ ...p, bilik: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-indigo-400">
-              <option value="">-- Pilih Bilik --</option>
-              {bilikList.map(b => <option key={b.nama}>{b.nama}</option>)}
-            </select>
+            <input
+              type="text"
+              value={searchBilik}
+              onFocus={() => setShowBilikDropdown(true)}
+              onBlur={() => setTimeout(() => setShowBilikDropdown(false), 150)}
+              onChange={e => {
+                setSearchBilik(e.target.value)
+                setForm(p => ({ ...p, bilik: '' }))
+              }}
+              placeholder="Taip untuk cari bilik..."
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+            />
+            {showBilikDropdown && (
+              <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                {bilikList.filter(b => b.nama.toLowerCase().includes(searchBilik.toLowerCase())).map(b => (
+                  <button key={b.id} type="button"
+                    onMouseDown={() => {
+                      setForm(p => ({ ...p, bilik: b.nama }))
+                      setSearchBilik(b.nama)
+                      setShowBilikDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-900 hover:bg-sky-50 flex items-center gap-2 first:rounded-t-xl last:rounded-b-xl">
+                    <span>{b.icon}</span>
+                    <span className="flex-1">{b.nama}</span>
+                    <span className="text-xs text-gray-400">{b.kapasiti}</span>
+                  </button>
+                ))}
+                {bilikList.filter(b => b.nama.toLowerCase().includes(searchBilik.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-xs text-gray-400 text-center">Tiada bilik dijumpai</div>
+                )}
+              </div>
+            )}
+            {form.bilik && (
+              <div className="mt-1 text-xs text-emerald-600 font-semibold">✓ {form.bilik} dipilih</div>
+            )}
           </div>
 
           <div>
@@ -743,6 +795,14 @@ export default function TempahanBilik() {
           )}
 
           <div>
+            <label className="block text-xs font-semibold text-sky-400 mb-1.5">No. Telefon <span className="text-gray-400 font-normal">(pilihan — untuk notifikasi WhatsApp)</span></label>
+            <input type="tel" value={form.no_telefon}
+              onChange={e => setForm(p => ({ ...p, no_telefon: e.target.value }))}
+              placeholder="011-23456789"
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
+          </div>
+
+          <div>
             <label className="block text-xs font-semibold text-sky-400 mb-1.5">Tujuan / Catatan</label>
             <textarea value={form.tujuan} onChange={e => setForm(p => ({ ...p, tujuan: e.target.value }))}
               placeholder="Tujuan penggunaan bilik..."
@@ -759,6 +819,81 @@ export default function TempahanBilik() {
             style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
             📤 Hantar Permohonan Tempahan
           </button>
+        </div>
+      )}
+
+      {/* ── STATUS SAYA ── */}
+      {tab === 'status' && (
+        <div className="space-y-4">
+          <div className="neo-card p-5 space-y-4">
+            <div className="text-sm font-bold text-sky-400 flex items-center gap-2">
+              <span>📱</span> Semak Status Tempahan Saya
+            </div>
+            <div className="text-xs text-gray-500">
+              Masukkan nama anda untuk lihat semua tempahan dan status terkini.
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={statusCari}
+                onChange={e => setStatusCari(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && setStatusResult(statusCari.trim())}
+                placeholder="Nama guru..."
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+              />
+              <button onClick={() => setStatusResult(statusCari.trim())}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold neo-btn"
+                style={{ background: '#2563EB', color: '#fff' }}>
+                Cari
+              </button>
+            </div>
+
+            {statusResult !== null && (() => {
+              const mine = tempahan.filter(t => normNama(t.guru) === normNama(statusResult))
+              return (
+                <div className="space-y-3">
+                  {mine.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <div className="text-4xl mb-2">🔍</div>
+                      <div className="text-sm">Tiada tempahan untuk "<span className="font-bold text-gray-600">{statusResult}</span>"</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-gray-500 font-medium">{mine.length} rekod ditemui untuk <span className="font-bold text-gray-700">"{statusResult}"</span></div>
+                      {mine.map(t => {
+                        const s = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending
+                        return (
+                          <div key={t.id} className="rounded-2xl p-4 space-y-2"
+                            style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-gray-900">{t.bilik}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{t.tarikh} • {t.masa}</div>
+                                {t.tujuan && <div className="text-xs text-gray-400 mt-0.5 italic">"{t.tujuan}"</div>}
+                              </div>
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${s.badge}`}>{s.label}</span>
+                            </div>
+                            {t.status === 'pending' && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Batalkan tempahan ${t.bilik} pada ${t.tarikh} (${t.masa})?`)) {
+                                    batalTempahan(t.id)
+                                  }
+                                }}
+                                className="w-full py-2 rounded-xl text-xs font-bold transition-colors"
+                                style={{ background: '#FEE2E2', color: '#DC2626', border: '1.5px solid #FECACA' }}>
+                                ✕ Batal Permohonan Ini
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
 
@@ -1197,6 +1332,50 @@ export default function TempahanBilik() {
                 Batal
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── WHATSAPP MODAL ── */}
+      {waModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-4"
+            style={{ background: '#fff', border: '2px solid #111827', boxShadow: '4px 4px 0 #111827' }}>
+            <div className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span>📱</span> Hantar Notifikasi WhatsApp?
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-700 space-y-1.5 border border-gray-200">
+              <div><span className="font-semibold text-gray-500">Guru:</span> {waModal.guru}</div>
+              <div><span className="font-semibold text-gray-500">Bilik:</span> {waModal.bilik}</div>
+              <div><span className="font-semibold text-gray-500">Masa:</span> {waModal.tarikh} • {waModal.masa}</div>
+              <div><span className="font-semibold text-gray-500">Status:</span> {waModal.status === 'approved' ? '✅ Diluluskan' : '❌ Ditolak'}</div>
+            </div>
+            {waModal.no_telefon ? (
+              <a
+                href={`https://wa.me/60${waModal.no_telefon.replace(/^0+/, '')}?text=${encodeURIComponent(
+                  `Salam ${waModal.guru},\n\nTempahan anda untuk *${waModal.bilik}* pada *${waModal.tarikh}* (${waModal.masa}) telah *${waModal.status === 'approved' ? 'DILULUSKAN ✅' : 'DITOLAK ❌'}*.\n\n_Sistem Tempahan Bilik SK Darau_`
+                )}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={() => { showToast('📱 WhatsApp dibuka!'); setWaModal(null) }}
+                className="block w-full text-center py-3.5 rounded-2xl text-sm font-black neo-btn"
+                style={{ background: '#25D366', color: '#fff' }}>
+                📱 Hantar WhatsApp kepada {waModal.guru}
+              </a>
+            ) : (
+              <div className="text-xs text-center text-gray-400 bg-gray-50 rounded-xl py-3 border border-gray-200">
+                Tiada no. telefon dalam permohonan ini
+              </div>
+            )}
+            <button
+              onClick={() => {
+                showToast(waModal.status === 'approved' ? '✅ Tempahan diluluskan!' : '❌ Tempahan ditolak!')
+                setWaModal(null)
+              }}
+              className="w-full py-2.5 rounded-xl text-xs font-bold"
+              style={{ background: '#F1F5F9', color: '#64748B', border: '1.5px solid #CBD5E1' }}>
+              Skip — Tutup
+            </button>
           </div>
         </div>
       )}

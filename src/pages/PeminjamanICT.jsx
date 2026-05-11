@@ -95,7 +95,17 @@ export default function PeminjamanICT() {
       supabase.from('peminjaman_ict').select('*').order('created_at', { ascending: false }),
     ])
     setItems(b ?? [])
-    setPeminjaman(p ?? [])
+    const pData = p ?? []
+    // Auto-update overdue status
+    const overdueIds = pData.filter(x => x.status === 'dipinjam' && x.tarikh_pulang < TODAY).map(x => x.id)
+    if (overdueIds.length > 0) {
+      await supabase.from('peminjaman_ict').update({ status: 'lewat' }).in('id', overdueIds)
+      overdueIds.forEach(id => {
+        const idx = pData.findIndex(x => x.id === id)
+        if (idx >= 0) pData[idx] = { ...pData[idx], status: 'lewat' }
+      })
+    }
+    setPeminjaman(pData)
     setLoading(false)
   }
 
