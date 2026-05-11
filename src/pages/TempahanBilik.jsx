@@ -249,11 +249,21 @@ export default function TempahanBilik() {
 
   const normNama = s => s?.trim().toLowerCase()
 
+  // Hanya block bila ada approved — pending boleh mohon serentak
   const slotKonflik = masaRange && form.bilik && form.tarikh
     ? tempahan.find(t =>
         t.bilik === form.bilik &&
         t.tarikh === form.tarikh &&
-        t.status !== 'rejected' &&
+        t.status === 'approved' &&
+        hasOverlap(t.masa, masaRange)
+      )
+    : null
+
+  const slotPending = masaRange && form.bilik && form.tarikh
+    ? tempahan.find(t =>
+        t.bilik === form.bilik &&
+        t.tarikh === form.tarikh &&
+        t.status === 'pending' &&
         hasOverlap(t.masa, masaRange)
       )
     : null
@@ -268,8 +278,8 @@ export default function TempahanBilik() {
       )
     : null
 
-  // Had 7 tempahan aktif (pending + approved) per guru
-  const TEMPAHAN_MAX = 7
+  // Had 5 tempahan aktif (pending + approved) per guru
+  const TEMPAHAN_MAX = 5
   const guruAktifCount = form.guru
     ? tempahan.filter(t =>
         normNama(t.guru) === normNama(form.guru) &&
@@ -718,10 +728,14 @@ export default function TempahanBilik() {
             <div className={`rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
               slotKonflik
                 ? 'bg-red-50 border border-red-200 text-red-600'
+                : slotPending
+                ? 'bg-amber-50 border border-amber-200 text-amber-700'
                 : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
             }`}>
               {slotKonflik ? (
-                <>🔴 Masa bertindih dengan tempahan <span className="font-bold">{slotKonflik.guru}</span>{slotKonflik.status === 'pending' ? ' (menunggu lulus)' : ''}</>
+                <>🔴 Masa sudah diluluskan untuk <span className="font-bold ml-1">{slotKonflik.guru}</span> — tidak boleh mohon</>
+              ) : slotPending ? (
+                <>🟡 Ada permohonan menunggu lulus dari <span className="font-bold ml-1">{slotPending.guru}</span> — anda masih boleh mohon</>
               ) : (
                 <>🟢 Slot kosong • Tempoh: <span className="font-bold">{durasiLabel(form.masa_mula, form.masa_tamat)}</span></>
               )}
@@ -1391,38 +1405,52 @@ function JadualRow({ slot, bilikList, tempahan, tarikh, getTutupInfo, onBook }) 
             </td>
           )
         }
-        const booking = tempahan.find(t =>
-          t.bilik?.trim().toLowerCase() === bilik.nama?.trim().toLowerCase() &&
-          t.tarikh === tarikh && slotDalamRange(t.masa, slot.masa)
+        const norm = s => s?.trim().toLowerCase()
+        const approvedBooking = tempahan.find(t =>
+          norm(t.bilik) === norm(bilik.nama) &&
+          t.tarikh === tarikh && t.status === 'approved' && slotDalamRange(t.masa, slot.masa)
         )
-        if (!booking) {
+        const pendingBookings = tempahan.filter(t =>
+          norm(t.bilik) === norm(bilik.nama) &&
+          t.tarikh === tarikh && t.status === 'pending' && slotDalamRange(t.masa, slot.masa)
+        )
+
+        if (approvedBooking) {
           return (
-            <td key={bilik.nama} className="p-1 border-b border-r border-gray-200 text-center">
-              <button onClick={() => onBook(bilik.nama, slot.masa)}
-                className="w-full min-h-[44px] rounded-lg text-base text-gray-300 hover:bg-sky-50 hover:text-sky-400 active:bg-sky-100 transition-all flex items-center justify-center">
-                +
-              </button>
+            <td key={bilik.nama} className="p-1 border-b border-r border-gray-200">
+              <div className="rounded-lg px-1 py-1.5 text-center border min-h-[44px] flex flex-col items-center justify-center bg-emerald-50 border-emerald-200">
+                <div className="text-[10px] font-bold leading-tight line-clamp-2 w-full text-center text-emerald-800">{approvedBooking.guru}</div>
+                <div className="text-[10px] mt-0.5 font-medium text-emerald-600">✓</div>
+              </div>
             </td>
           )
         }
-        const isApproved = booking.status === 'approved'
-        const isPending  = booking.status === 'pending'
-        return (
-          <td key={bilik.nama} className="p-1 border-b border-r border-gray-200">
-            <div className={`rounded-lg px-1 py-1.5 text-center border min-h-[44px] flex flex-col items-center justify-center ${
-              isApproved ? 'bg-emerald-50 border-emerald-200' :
-              isPending  ? 'bg-amber-50 border-amber-200' :
-                           'bg-red-50 border-red-200'
-            }`}>
-              <div className={`text-[10px] font-bold leading-tight line-clamp-2 w-full text-center ${
-                isApproved ? 'text-emerald-800' : isPending ? 'text-amber-800' : 'text-red-800'
-              }`}>{booking.guru}</div>
-              <div className={`text-[10px] mt-0.5 font-medium ${
-                isApproved ? 'text-emerald-600' : isPending ? 'text-amber-500' : 'text-red-500'
-              }`}>
-                {isApproved ? '✓' : isPending ? '⏳' : '✗'}
+
+        if (pendingBookings.length > 0) {
+          return (
+            <td key={bilik.nama} className="p-1 border-b border-r border-gray-200">
+              <div className="rounded-lg px-1 py-1 text-center border min-h-[44px] flex flex-col items-center justify-between bg-amber-50 border-amber-200 gap-0.5">
+                <div className="w-full">
+                  <div className="text-[10px] font-bold leading-tight line-clamp-1 w-full text-center text-amber-800">{pendingBookings[0].guru}</div>
+                  <div className="text-[10px] font-medium text-amber-500">
+                    ⏳{pendingBookings.length > 1 ? ` +${pendingBookings.length - 1}` : ''}
+                  </div>
+                </div>
+                <button onClick={() => onBook(bilik.nama, slot.masa)}
+                  className="w-full rounded text-[10px] font-bold text-amber-600 hover:bg-amber-100 active:bg-amber-200 transition-all leading-none py-0.5">
+                  + Mohon
+                </button>
               </div>
-            </div>
+            </td>
+          )
+        }
+
+        return (
+          <td key={bilik.nama} className="p-1 border-b border-r border-gray-200 text-center">
+            <button onClick={() => onBook(bilik.nama, slot.masa)}
+              className="w-full min-h-[44px] rounded-lg text-base text-gray-300 hover:bg-sky-50 hover:text-sky-400 active:bg-sky-100 transition-all flex items-center justify-center">
+              +
+            </button>
           </td>
         )
       })}
