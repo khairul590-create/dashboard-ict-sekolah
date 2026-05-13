@@ -141,6 +141,7 @@ export default function TempahanBilik() {
   const [cancelModal, setCancelModal] = useState(null)
   const [cancelSebab, setCancelSebab] = useState('')
   const [gantianModal, setGantianModal] = useState(null)
+  const [adminSubTab, setAdminSubTab] = useState('kelulusan')
 
   const [syaratModal, setSyaratModal] = useState(false)
   const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
@@ -1089,6 +1090,29 @@ export default function TempahanBilik() {
       {/* ── ADMIN ── */}
       {tab === 'admin' && (
         <AdminGate>
+          {/* Admin Sub-Nav */}
+          <div className="flex gap-1.5 rounded-2xl p-1.5 overflow-x-auto scrollbar-hide"
+            style={{ background: '#F8FAFC', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
+            {[
+              { id: 'kelulusan', label: '⏳ Kelulusan', badge: pendingCount },
+              { id: 'semua',     label: '📋 Semua' },
+              { id: 'penutupan', label: '🚫 Penutupan' },
+              { id: 'bilik',     label: '🏫 Urus Bilik' },
+            ].map(s => (
+              <button key={s.id} onClick={() => setAdminSubTab(s.id)}
+                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                style={adminSubTab === s.id
+                  ? { background: '#2563EB', color: '#fff', border: '1.5px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                  : { background: 'transparent', color: '#64748B' }}>
+                {s.label}
+                {s.badge > 0 && (
+                  <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full leading-none">{s.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {adminSubTab === 'kelulusan' && (
           <div className="neo-card p-5">
             <div className="flex items-center justify-between">
               <SectionHeader icon="⏳" title="Menunggu Kelulusan" color="text-amber-400" />
@@ -1137,7 +1161,9 @@ export default function TempahanBilik() {
             </div>
           </div>
 
-          {/* Semua tempahan */}
+          )}
+
+          {adminSubTab === 'semua' && (
           <div className="neo-card p-5">
             <SectionHeader icon="📋" title="Semua Tempahan" color="text-sky-400" />
             <div className="space-y-2.5 mt-4">
@@ -1164,7 +1190,9 @@ export default function TempahanBilik() {
             </div>
           </div>
 
-          {/* Tutup / Penyelenggaraan Bilik */}
+          )}
+
+          {adminSubTab === 'penutupan' && (
           <div className="neo-card p-5 space-y-4">
             <SectionHeader icon="🚫" title="Penutupan / Penyelenggaraan Bilik" color="text-red-400" />
 
@@ -1299,7 +1327,9 @@ export default function TempahanBilik() {
             </div>
           </div>
 
-          {/* Urus Bilik */}
+          )}
+
+          {adminSubTab === 'bilik' && (
           <div className="neo-card p-5 space-y-4">
             <SectionHeader icon="🏫" title="Urus Bilik Khas" color="text-sky-400" />
 
@@ -1351,6 +1381,7 @@ export default function TempahanBilik() {
               ))}
             </div>
           </div>
+          )}
         </AdminGate>
       )}
 
