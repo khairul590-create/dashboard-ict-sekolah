@@ -1,4 +1,4 @@
-export const SENARAI_GURU = [
+export const SENARAI_GURU = ([
   { nama: 'ABDUL AZIZ BIN ABDULLAH', email: 'g-87240145@moe-dl.edu.my' },
   { nama: 'AHMED GHAZALI BIN APIUDDIN', email: 'g-05569692@moe-dl.edu.my' },
   { nama: 'AINI NADZIRAH BINTI MOHD KHLUBI', email: 'g-00564304@moe-dl.edu.my' },
@@ -67,4 +67,4 @@ export const SENARAI_GURU = [
   { nama: 'EVLINA BINTI PHILIMON', email: 'g-82539670@moe-dl.edu.my' },
   { nama: 'ARIFAH HIKMAH BINTI AMIR KUSIN', email: 'g-62250219@moe-dl.edu.my' },
   { nama: 'HAMIDAH SYAMAMI BINTI MD NOR', email: 'g-96240862@moe-dl.edu.my' },
-]
+]).sort((a, b) => a.nama.localeCompare(b.nama))
