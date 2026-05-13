@@ -66,6 +66,14 @@ export default function DashboardUtama() {
       setLoading(false)
     }
     fetchAll()
+
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tempahan_bilik' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'peminjaman_ict' }, fetchAll)
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const TODAY = new Date().toISOString().slice(0, 10)
@@ -232,7 +240,7 @@ export default function DashboardUtama() {
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold truncate" style={{ color: '#1E3A8A' }}>{t.guru}</div>
-                    <div className="text-xs truncate italic" style={{ color: '#64748B' }}>{t.bilik} • {t.masa}</div>
+                    <div className="text-xs truncate italic" style={{ color: '#64748B' }}>{t.bilik} • {t.tarikh} • {t.masa}</div>
                   </div>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                     style={{ background: c + '22', color: c }}>
