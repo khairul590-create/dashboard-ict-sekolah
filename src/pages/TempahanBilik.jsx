@@ -127,6 +127,7 @@ export default function TempahanBilik() {
 
   const [statusCari, setStatusCari] = useState('')
   const [statusResult, setStatusResult] = useState(null)
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
   const [searchGuru, setSearchGuru] = useState('')
   const [showGuruDropdown, setShowGuruDropdown] = useState(false)
   const [searchBilik, setSearchBilik] = useState('')
@@ -948,20 +949,39 @@ export default function TempahanBilik() {
             <div className="text-xs text-gray-500">
               Masukkan nama anda untuk lihat semua tempahan dan status terkini.
             </div>
-            <div className="flex gap-2">
+            <div className="relative">
               <input
                 type="text"
                 value={statusCari}
-                onChange={e => setStatusCari(e.target.value)}
+                onFocus={() => setShowStatusDropdown(true)}
+                onBlur={() => setTimeout(() => setShowStatusDropdown(false), 150)}
+                onChange={e => {
+                  setStatusCari(e.target.value)
+                  setStatusResult(null)
+                  setShowStatusDropdown(true)
+                }}
                 onKeyDown={e => e.key === 'Enter' && setStatusResult(statusCari.trim())}
-                placeholder="Nama guru..."
-                className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+                placeholder="Pilih atau taip nama guru..."
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
               />
-              <button onClick={() => setStatusResult(statusCari.trim())}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold neo-btn"
-                style={{ background: '#2563EB', color: '#fff' }}>
-                Cari
-              </button>
+              {showStatusDropdown && (
+                <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                  {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).map(g => (
+                    <button key={g.nama} type="button"
+                      onMouseDown={() => {
+                        setStatusCari(g.nama)
+                        setStatusResult(g.nama)
+                        setShowStatusDropdown(false)
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-900 hover:bg-sky-50 first:rounded-t-xl last:rounded-b-xl">
+                      {g.nama}
+                    </button>
+                  ))}
+                  {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).length === 0 && (
+                    <div className="px-4 py-3 text-xs text-gray-400 text-center">Tiada guru dijumpai</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {statusResult !== null && (() => {
