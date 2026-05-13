@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { SENARAI_GURU } from '../lib/guruList'
 import Layout from '../components/Layout'
 import SectionHeader from '../components/SectionHeader'
 import AdminGate from '../components/AdminGate'
@@ -126,13 +127,19 @@ export default function TempahanBilik() {
 
   const [statusCari, setStatusCari] = useState('')
   const [statusResult, setStatusResult] = useState(null)
+  const [searchGuru, setSearchGuru] = useState('')
+  const [showGuruDropdown, setShowGuruDropdown] = useState(false)
   const [searchBilik, setSearchBilik] = useState('')
   const [showBilikDropdown, setShowBilikDropdown] = useState(false)
   const [waModal, setWaModal] = useState(null)
 
   const [formBilik, setFormBilik] = useState({ nama: '', icon: '🏫', kapasiti: '30 pelajar' })
   const [bilikTutup, setBilikTutup] = useState([])
-  const [formTutup, setFormTutup] = useState({ bilik: '', tarikh_mula: TODAY, tarikh_tamat: TODAY, sebab: '' })
+  const [formTutup, setFormTutup] = useState({ bilik: '', tarikh_mula: TODAY, tarikh_tamat: TODAY, sebab: '', jenis: 'harian', masa_mula: '', masa_tamat: '' })
+
+  const [cancelModal, setCancelModal] = useState(null)
+  const [cancelSebab, setCancelSebab] = useState('')
+  const [gantianModal, setGantianModal] = useState(null)
 
   const [syaratModal, setSyaratModal] = useState(false)
   const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
@@ -189,15 +196,34 @@ export default function TempahanBilik() {
   }
 
   async function tambahTutup() {
-    if (!formTutup.bilik || !formTutup.tarikh_mula || !formTutup.tarikh_tamat) {
-      showToast('Sila lengkapkan maklumat penutupan!', 'error'); return
+    if (!formTutup.bilik) { showToast('Sila pilih bilik!', 'error'); return }
+    if (formTutup.jenis === 'sementara') {
+      if (!formTutup.masa_mula || !formTutup.masa_tamat) {
+        showToast('Sila tetapkan masa penutupan!', 'error'); return
+      }
+      if (toMins(formTutup.masa_tamat) <= toMins(formTutup.masa_mula)) {
+        showToast('Masa tamat mestilah selepas masa mula!', 'error'); return
+      }
+      const { error } = await supabase.from('bilik_tutup').insert([{
+        bilik: formTutup.bilik, tarikh_mula: formTutup.tarikh_mula,
+        tarikh_tamat: formTutup.tarikh_mula, sebab: formTutup.sebab,
+        masa_mula: formTutup.masa_mula, masa_tamat: formTutup.masa_tamat,
+      }])
+      if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    } else {
+      if (!formTutup.tarikh_mula || !formTutup.tarikh_tamat) {
+        showToast('Sila lengkapkan tarikh penutupan!', 'error'); return
+      }
+      if (formTutup.tarikh_tamat < formTutup.tarikh_mula) {
+        showToast('Tarikh tamat mestilah selepas tarikh mula!', 'error'); return
+      }
+      const { error } = await supabase.from('bilik_tutup').insert([{
+        bilik: formTutup.bilik, tarikh_mula: formTutup.tarikh_mula,
+        tarikh_tamat: formTutup.tarikh_tamat, sebab: formTutup.sebab,
+      }])
+      if (error) { showToast('Ralat: ' + error.message, 'error'); return }
     }
-    if (formTutup.tarikh_tamat < formTutup.tarikh_mula) {
-      showToast('Tarikh tamat mestilah selepas tarikh mula!', 'error'); return
-    }
-    const { error } = await supabase.from('bilik_tutup').insert([formTutup])
-    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
-    setFormTutup({ bilik: '', tarikh_mula: TODAY, tarikh_tamat: TODAY, sebab: '' })
+    setFormTutup({ bilik: '', tarikh_mula: TODAY, tarikh_tamat: TODAY, sebab: '', jenis: 'harian', masa_mula: '', masa_tamat: '' })
     showToast('🚫 Penutupan bilik berjaya ditetapkan!')
     fetchBilikTutup()
   }
@@ -208,12 +234,24 @@ export default function TempahanBilik() {
     fetchBilikTutup()
   }
 
-  function getTutupInfo(namaBilik, tarikh) {
+  function getTutupInfo(namaBilik, tarikh, slotMasa = null) {
     const norm = s => s?.trim().toLowerCase()
-    return bilikTutup.find(t =>
-      norm(t.bilik) === norm(namaBilik) &&
-      tarikh >= t.tarikh_mula && tarikh <= t.tarikh_tamat
-    ) ?? null
+    return bilikTutup.find(t => {
+      if (norm(t.bilik) !== norm(namaBilik)) return false
+      if (tarikh < t.tarikh_mula || tarikh > t.tarikh_tamat) return false
+      if (t.masa_mula && t.masa_tamat && slotMasa) {
+        return hasOverlap(slotMasa, `${t.masa_mula}–${t.masa_tamat}`)
+      }
+      return true
+    }) ?? null
+  }
+
+  function setMasaSementara(jam) {
+    const now = new Date()
+    const mMula = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    const tamatDate = new Date(now.getTime() + jam * 3600000)
+    const mTamat = `${String(tamatDate.getHours()).padStart(2,'0')}:${String(tamatDate.getMinutes()).padStart(2,'0')}`
+    setFormTutup(f => ({ ...f, masa_mula: mMula, masa_tamat: mTamat, tarikh_mula: TODAY, tarikh_tamat: TODAY }))
   }
 
   async function tambahBilik() {
@@ -233,6 +271,7 @@ export default function TempahanBilik() {
 
   useEffect(() => { fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim() }, [])
 
+  useEffect(() => { if (form.guru) setSearchGuru(form.guru) }, [form.guru])
   useEffect(() => { if (form.bilik) setSearchBilik(form.bilik) }, [form.bilik])
 
   const pendingCount = tempahan.filter(t => t.status === 'pending').length
@@ -317,7 +356,13 @@ export default function TempahanBilik() {
       showToast('Masa tamat mestilah selepas masa mula!', 'error'); return
     }
     if (bilikDitutup) {
-      showToast(`🚫 ${form.bilik} ditutup sehingga ${bilikDitutup.tarikh_tamat}!`, 'error'); return
+      if (bilikDitutup.masa_mula && bilikDitutup.masa_tamat) {
+        if (masaRange && hasOverlap(masaRange, `${bilikDitutup.masa_mula}–${bilikDitutup.masa_tamat}`)) {
+          showToast(`🚫 ${form.bilik} ditutup sementara pada ${bilikDitutup.masa_mula}–${bilikDitutup.masa_tamat}!`, 'error'); return
+        }
+      } else {
+        showToast(`🚫 ${form.bilik} ditutup sehingga ${bilikDitutup.tarikh_tamat}!`, 'error'); return
+      }
     }
     if (hadTempahanCecah) {
       showToast(`⚠️ Had ${TEMPAHAN_MAX} tempahan aktif dicapai! Tunggu keputusan admin dahulu.`, 'error'); return
@@ -341,6 +386,7 @@ export default function TempahanBilik() {
     if (error) { showToast('Ralat: ' + error.message, 'error'); setSyaratModal(false); return }
     const tarikhDitempah = form.tarikh
     setForm({ guru: '', bilik: '', tarikh: TODAY, masa_mula: '', masa_tamat: '', tujuan: '', no_telefon: '' })
+    setSearchGuru('')
     setSearchBilik('')
     setSyaratModal(false)
     showToast('✅ Tempahan berjaya dihantar!')
@@ -369,6 +415,20 @@ export default function TempahanBilik() {
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
     showToast('✅ Tempahan berjaya dibatalkan.')
     fetchTempahan()
+  }
+
+  async function batalApproved(id, sebab) {
+    const rec = cancelModal
+    const { error } = await supabase
+      .from('tempahan_bilik')
+      .update({ status: 'dibatal', sebab_batal: sebab })
+      .eq('id', id)
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    setCancelModal(null)
+    setCancelSebab('')
+    showToast('✅ Tempahan berjaya dibatalkan oleh admin.')
+    await fetchTempahan()
+    setGantianModal({ bilik: rec.bilik, tarikh: rec.tarikh, masa: rec.masa, guru: rec.guru })
   }
 
   async function updateStatus(id, status) {
@@ -443,6 +503,25 @@ export default function TempahanBilik() {
               </div>
             ))}
           </div>
+
+          {/* Closure Alerts */}
+          {bilikTutup.filter(t => TODAY >= t.tarikh_mula && TODAY <= t.tarikh_tamat).length > 0 && (
+            <div className="space-y-2">
+              {bilikTutup.filter(t => TODAY >= t.tarikh_mula && TODAY <= t.tarikh_tamat).map(t => (
+                <div key={t.id} className="neo-card flex items-start gap-3 px-4 py-3"
+                  style={{ background: '#FFF1F2', border: '2px solid #FCA5A5' }}>
+                  <span className="text-lg flex-shrink-0 mt-0.5">🚫</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black text-red-800">
+                      {t.bilik} — {t.masa_mula ? `Ditutup Sementara (${t.masa_mula}–${t.masa_tamat})` : 'Ditutup / Penyelenggaraan'}
+                    </div>
+                    {!t.masa_mula && <div className="text-xs text-red-600 mt-0.5">{t.tarikh_mula} → {t.tarikh_tamat}</div>}
+                    {t.sebab && <div className="text-xs text-red-500 italic mt-0.5">"{t.sebab}"</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Room Grid */}
           <div className="neo-card p-5">
@@ -654,17 +733,42 @@ export default function TempahanBilik() {
             <span>📝</span> Borang Tempahan Bilik Khas
           </div>
 
-          {[
-            { label: 'Nama Guru *', field: 'guru', type: 'text', placeholder: 'Nama penuh guru' },
-          ].map(f => (
-            <div key={f.field}>
-              <label className="block text-xs font-semibold text-sky-400 mb-1.5">{f.label}</label>
-              <input type={f.type} value={form[f.field]}
-                onChange={e => setForm(p => ({ ...p, [f.field]: e.target.value }))}
-                placeholder={f.placeholder}
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400" />
-            </div>
-          ))}
+          <div className="relative">
+            <label className="block text-xs font-semibold text-sky-400 mb-1.5">Nama Guru *</label>
+            <input
+              type="text"
+              value={searchGuru}
+              onFocus={() => setShowGuruDropdown(true)}
+              onBlur={() => setTimeout(() => setShowGuruDropdown(false), 150)}
+              onChange={e => {
+                setSearchGuru(e.target.value)
+                setForm(p => ({ ...p, guru: '' }))
+              }}
+              placeholder="Taip untuk cari nama guru..."
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+            />
+            {showGuruDropdown && (
+              <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).map(g => (
+                  <button key={g.nama} type="button"
+                    onMouseDown={() => {
+                      setForm(p => ({ ...p, guru: g.nama }))
+                      setSearchGuru(g.nama)
+                      setShowGuruDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-900 hover:bg-sky-50 first:rounded-t-xl last:rounded-b-xl">
+                    {g.nama}
+                  </button>
+                ))}
+                {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-xs text-gray-400 text-center">Tiada guru dijumpai</div>
+                )}
+              </div>
+            )}
+            {form.guru && (
+              <div className="mt-1 text-xs text-emerald-600 font-semibold">✓ {form.guru} dipilih</div>
+            )}
+          </div>
 
           <div className="relative">
             <label className="block text-xs font-semibold text-sky-400 mb-1.5">Pilih Bilik *</label>
@@ -744,8 +848,17 @@ export default function TempahanBilik() {
             <div className="rounded-xl px-3 py-2.5 text-xs font-semibold bg-red-50 border border-red-200 text-red-700 flex items-start gap-2">
               <span className="text-base leading-none shrink-0">🚫</span>
               <div>
-                <div className="font-bold">{form.bilik} ditutup / penyelenggaraan</div>
-                <div className="font-normal mt-0.5">{bilikDitutup.tarikh_mula} → {bilikDitutup.tarikh_tamat}</div>
+                {bilikDitutup.masa_mula ? (
+                  <>
+                    <div className="font-bold">{form.bilik} ditutup sementara hari ini</div>
+                    <div className="font-normal mt-0.5">Masa: {bilikDitutup.masa_mula} – {bilikDitutup.masa_tamat}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-bold">{form.bilik} ditutup / penyelenggaraan</div>
+                    <div className="font-normal mt-0.5">{bilikDitutup.tarikh_mula} → {bilikDitutup.tarikh_tamat}</div>
+                  </>
+                )}
                 {bilikDitutup.sebab && <div className="font-normal text-red-500 italic mt-0.5">"{bilikDitutup.sebab}"</div>}
               </div>
             </div>
@@ -814,7 +927,10 @@ export default function TempahanBilik() {
             ℹ️ Permohonan akan disemak oleh pentadbir. Hubungi Guru ICT terus sekiranya terdapat keperluan mendesak.
           </div>
 
-          <button onClick={submitTempahan} disabled={!!bilikDitutup || hadTempahanCecah || !!guruKonflik}
+          <button onClick={submitTempahan} disabled={
+            (bilikDitutup && (!bilikDitutup.masa_mula || (masaRange && hasOverlap(masaRange, `${bilikDitutup.masa_mula}–${bilikDitutup.masa_tamat}`)))) ||
+            hadTempahanCecah || !!guruKonflik
+          }
             className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
             📤 Hantar Permohonan Tempahan
@@ -902,7 +1018,7 @@ export default function TempahanBilik() {
         <>
           {/* Filter */}
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {['semua', 'pending', 'approved', 'rejected'].map(s => (
+            {['semua', 'pending', 'approved', 'rejected', 'dibatal'].map(s => (
               <button key={s} onClick={() => setFilterStatus(s)}
                 className="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all"
                 style={filterStatus === s
@@ -1025,6 +1141,27 @@ export default function TempahanBilik() {
             {/* Form tambah tutup */}
             <div className="bg-red-50 border border-red-100 rounded-2xl p-4 space-y-3">
               <div className="text-xs font-bold text-red-500">➕ Tutup Bilik (Penyelenggaraan / Tidak Boleh Guna)</div>
+
+              {/* Jenis toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFormTutup(f => ({ ...f, jenis: 'harian', masa_mula: '', masa_tamat: '' }))}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={formTutup.jenis === 'harian'
+                    ? { background: '#DC2626', color: '#fff', border: '2px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                    : { background: '#fff', color: '#DC2626', border: '2px solid #FCA5A5' }}>
+                  📅 Sehari Penuh
+                </button>
+                <button
+                  onClick={() => setFormTutup(f => ({ ...f, jenis: 'sementara', tarikh_mula: TODAY, tarikh_tamat: TODAY }))}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                  style={formTutup.jenis === 'sementara'
+                    ? { background: '#D97706', color: '#fff', border: '2px solid #111827', boxShadow: '2px 2px 0 #111827' }
+                    : { background: '#fff', color: '#D97706', border: '2px solid #FDE68A' }}>
+                  ⏱️ Sementara (1–2 Jam)
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Bilik *</label>
                 <select value={formTutup.bilik} onChange={e => setFormTutup(f => ({ ...f, bilik: e.target.value }))}
@@ -1033,20 +1170,64 @@ export default function TempahanBilik() {
                   {bilikList.map(b => <option key={b.id} value={b.nama}>{b.icon} {b.nama}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Dari Tarikh *</label>
-                  <input type="date" value={formTutup.tarikh_mula}
-                    onChange={e => setFormTutup(f => ({ ...f, tarikh_mula: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-red-400" />
+
+              {formTutup.jenis === 'harian' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Dari Tarikh *</label>
+                    <input type="date" value={formTutup.tarikh_mula}
+                      onChange={e => setFormTutup(f => ({ ...f, tarikh_mula: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-red-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Hingga Tarikh *</label>
+                    <input type="date" value={formTutup.tarikh_tamat}
+                      onChange={e => setFormTutup(f => ({ ...f, tarikh_tamat: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-red-400" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Hingga Tarikh *</label>
-                  <input type="date" value={formTutup.tarikh_tamat}
-                    onChange={e => setFormTutup(f => ({ ...f, tarikh_tamat: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-red-400" />
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Tarikh *</label>
+                    <input type="date" value={formTutup.tarikh_mula}
+                      onChange={e => setFormTutup(f => ({ ...f, tarikh_mula: e.target.value, tarikh_tamat: e.target.value }))}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-amber-400" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setMasaSementara(1)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold"
+                      style={{ background: '#FEF3C7', color: '#D97706', border: '1.5px solid #FDE68A' }}>
+                      ⏱️ 1 Jam dari sekarang
+                    </button>
+                    <button onClick={() => setMasaSementara(2)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold"
+                      style={{ background: '#FEF3C7', color: '#D97706', border: '1.5px solid #FDE68A' }}>
+                      ⏱️ 2 Jam dari sekarang
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Masa Mula *</label>
+                      <input type="time" value={formTutup.masa_mula}
+                        onChange={e => setFormTutup(f => ({ ...f, masa_mula: e.target.value }))}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Masa Tamat *</label>
+                      <input type="time" value={formTutup.masa_tamat}
+                        onChange={e => setFormTutup(f => ({ ...f, masa_tamat: e.target.value }))}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                  {formTutup.masa_mula && formTutup.masa_tamat && (
+                    <div className="text-xs text-amber-700 font-semibold bg-amber-50 rounded-lg px-3 py-2">
+                      ⏱️ Tutup selama {durasiLabel(formTutup.masa_mula, formTutup.masa_tamat)} ({formTutup.masa_mula} – {formTutup.masa_tamat})
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Sebab / Catatan</label>
                 <input value={formTutup.sebab} onChange={e => setFormTutup(f => ({ ...f, sebab: e.target.value }))}
@@ -1054,8 +1235,9 @@ export default function TempahanBilik() {
                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400" />
               </div>
               <button onClick={tambahTutup}
-                className="w-full bg-red-500 hover:bg-red-400 text-white py-2.5 rounded-xl text-xs font-bold transition-colors">
-                🚫 Tetapkan Penutupan
+                className="w-full text-white py-2.5 rounded-xl text-xs font-bold transition-colors"
+                style={{ background: formTutup.jenis === 'sementara' ? '#D97706' : '#DC2626' }}>
+                🚫 Tetapkan Penutupan {formTutup.jenis === 'sementara' ? 'Sementara' : 'Sehari Penuh'}
               </button>
             </div>
 
@@ -1066,10 +1248,16 @@ export default function TempahanBilik() {
               )}
               {bilikTutup.map(t => (
                 <div key={t.id} className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-3">
-                  <span className="text-lg leading-none mt-0.5">🚫</span>
+                  <span className="text-lg leading-none mt-0.5">{t.masa_mula ? '⏱️' : '🚫'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-red-700">{t.bilik}</div>
-                    <div className="text-xs text-red-500 mt-0.5">{t.tarikh_mula} → {t.tarikh_tamat}</div>
+                    {t.masa_mula ? (
+                      <div className="text-xs text-amber-600 mt-0.5 font-semibold">
+                        Sementara: {t.masa_mula} – {t.masa_tamat} ({t.tarikh_mula})
+                      </div>
+                    ) : (
+                      <div className="text-xs text-red-500 mt-0.5">{t.tarikh_mula} → {t.tarikh_tamat}</div>
+                    )}
                     {t.sebab && <div className="text-xs text-gray-500 italic mt-0.5">"{t.sebab}"</div>}
                   </div>
                   <button onClick={() => hapusTutup(t.id)}
@@ -1392,6 +1580,7 @@ export default function TempahanBilik() {
           onApprove={id => updateStatus(id, 'approved')}
           onReject={id => updateStatus(id, 'rejected')}
           onDelete={id => deleteTempahan(id)}
+          onInitBatal={rec => { setModal(null); setCancelModal(rec) }}
           onEdit={async (id, data) => {
             const { error } = await supabase.from('tempahan_bilik').update(data).eq('id', id)
             if (error) { showToast('Ralat: ' + error.message, 'error'); return }
@@ -1402,11 +1591,91 @@ export default function TempahanBilik() {
         />
       )}
 
+      {/* ── CANCEL MODAL ── */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-4"
+            style={{ background: '#fff', border: '2px solid #111827', boxShadow: '4px 4px 0 #111827' }}>
+            <div className="text-base font-bold text-red-600 flex items-center gap-2">
+              <span>🚫</span> Batalkan Tempahan (Admin)
+            </div>
+            <div className="bg-red-50 rounded-xl p-3 text-xs text-gray-700 space-y-1.5 border border-red-100">
+              <div><span className="font-semibold text-gray-500">Guru:</span> {cancelModal.guru}</div>
+              <div><span className="font-semibold text-gray-500">Bilik:</span> {cancelModal.bilik}</div>
+              <div><span className="font-semibold text-gray-500">Masa:</span> {cancelModal.tarikh} • {cancelModal.masa}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Sebab Pembatalan *</label>
+              <textarea value={cancelSebab} onChange={e => setCancelSebab(e.target.value)} rows={3}
+                placeholder="Contoh: Bilik diperlukan untuk aktiviti lain, penyelenggaraan segera..."
+                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-400 resize-none" />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (!cancelSebab.trim()) { showToast('Sila masukkan sebab pembatalan!', 'error'); return }
+                  batalApproved(cancelModal.id, cancelSebab.trim())
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#DC2626', color: '#fff' }}>
+                🚫 Sahkan Pembatalan
+              </button>
+              <button onClick={() => { setCancelModal(null); setCancelSebab('') }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#F1F5F9', color: '#64748B' }}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── GANTIAN MODAL ── */}
+      {gantianModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4"
+            style={{ border: '2px solid #111827', boxShadow: '4px 4px 0 #111827' }}>
+            <div className="text-base font-bold text-gray-900">📅 Buat Tempahan Gantian?</div>
+            <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-700 space-y-1.5 border border-gray-200">
+              <div><span className="font-semibold text-gray-500">Bilik:</span> {gantianModal.bilik}</div>
+              <div><span className="font-semibold text-gray-500">Tarikh:</span> {gantianModal.tarikh}</div>
+              <div><span className="font-semibold text-gray-500">Masa:</span> {gantianModal.masa}</div>
+            </div>
+            <div className="text-xs text-gray-500 leading-relaxed">
+              Adakah anda ingin membuat tempahan gantian untuk slot yang telah dibatalkan?
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                const [mula, tamat] = (gantianModal.masa || '–').split('–')
+                setForm(f => ({
+                  ...f, bilik: gantianModal.bilik, tarikh: gantianModal.tarikh,
+                  masa_mula: mula?.trim() || '', masa_tamat: tamat?.trim() || '',
+                }))
+                setSearchBilik(gantianModal.bilik)
+                setGantianModal(null)
+                setTab('tempah')
+              }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#DCFCE7', color: '#059669' }}>
+                ✅ Ya, Buat Gantian
+              </button>
+              <button onClick={() => setGantianModal(null)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#F1F5F9', color: '#64748B' }}>
+                Tidak
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Layout>
   )
 }
 
-function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_STARTS, PAGI_ENDS, PETANG_STARTS, PETANG_ENDS, toMins, durasiLabel, onClose, onApprove, onReject, onDelete, onEdit }) {
+function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_STARTS, PAGI_ENDS, PETANG_STARTS, PETANG_ENDS, toMins, durasiLabel, onClose, onApprove, onReject, onDelete, onInitBatal, onEdit }) {
   const [editMode, setEditMode] = useState(false)
   const [ed, setEd] = useState(null)
 
@@ -1517,6 +1786,12 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
                 <span className="text-xs font-bold text-gray-900">{v}</span>
               </div>
             ))}
+            {modal.sebab_batal && (
+              <div className="flex justify-between py-2 border-b border-gray-200">
+                <span className="text-xs text-gray-500">Sebab Batal</span>
+                <span className="text-xs font-bold text-red-600 text-right max-w-[60%]">{modal.sebab_batal}</span>
+              </div>
+            )}
             {modal.status === 'pending' && isAdmin && (
               <div className="flex gap-2 mt-4">
                 <button onClick={() => onApprove(modal.id)}
@@ -1530,6 +1805,13 @@ function ModalTempahan({ modal, isAdmin, bilikList, STATUS_CONFIG, TODAY, PAGI_S
                   ❌ Tolak
                 </button>
               </div>
+            )}
+            {modal.status === 'approved' && isAdmin && (
+              <button onClick={() => onInitBatal(modal)}
+                className="w-full mt-3 py-2.5 rounded-xl text-xs font-bold neo-btn"
+                style={{ background: '#FEF3C7', color: '#D97706', border: '2px solid #FDE68A' }}>
+                🚫 Batal Tempahan (Admin)
+              </button>
             )}
             {isAdmin && (
               <button onClick={() => onDelete(modal.id)}
@@ -1574,7 +1856,7 @@ function JadualRow({ slot, bilikList, tempahan, tarikh, getTutupInfo, onBook }) 
         <div className="text-[10px] text-gray-400 leading-none">–{endStr}</div>
       </td>
       {bilikList.map(bilik => {
-        const tutup = getTutupInfo(bilik.nama, tarikh)
+        const tutup = getTutupInfo(bilik.nama, tarikh, slot.masa)
         if (tutup) {
           return (
             <td key={bilik.nama} className="p-1 border-b border-r border-gray-200">

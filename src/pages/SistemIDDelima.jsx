@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { SENARAI_GURU } from '../lib/guruList'
 import Layout from '../components/Layout'
 import SectionHeader from '../components/SectionHeader'
 import AdminGate from '../components/AdminGate'
@@ -236,6 +237,7 @@ export default function SistemIDDelima() {
     { id: 'dashboard', label: '🏠 Utama' },
     { id: 'daftar',    label: '➕ Daftar' },
     { id: 'senarai',   label: '👥 Senarai' },
+    { id: 'staf',      label: '📋 Staf' },
     { id: 'admin',     label: '⚙️ Admin' },
   ]
 
@@ -663,6 +665,11 @@ export default function SistemIDDelima() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── STAF ── */}
+      {tab === 'staf' && (
+        <StafDelima />
       )}
 
       {/* ── ADMIN ── */}
@@ -1102,5 +1109,65 @@ export default function SistemIDDelima() {
       )}
 
     </Layout>
+  )
+}
+
+function StafDelima() {
+  const [carian, setCarian] = useState('')
+  const [copied, setCopied] = useState(null)
+
+  const filtered = SENARAI_GURU.filter(g =>
+    g.nama.toLowerCase().includes(carian.toLowerCase()) ||
+    g.email.toLowerCase().includes(carian.toLowerCase())
+  )
+
+  function copyEmail(email) {
+    navigator.clipboard.writeText(email).then(() => {
+      setCopied(email)
+      setTimeout(() => setCopied(null), 1500)
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="neo-card p-5 space-y-3">
+        <div className="text-sm font-bold text-indigo-500 flex items-center gap-2">
+          <span>📋</span> Senarai Staf & Email DELIMA
+          <span className="ml-auto text-xs font-normal text-gray-400">{SENARAI_GURU.length} guru</span>
+        </div>
+        <input
+          value={carian}
+          onChange={e => setCarian(e.target.value)}
+          placeholder="Cari nama atau email..."
+          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
+        />
+        <div className="space-y-1.5">
+          {filtered.map((g, i) => (
+            <div key={g.email} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+              style={{ background: i % 2 === 0 ? '#F8FAFC' : '#FFFFFF', border: '1px solid #E2E8F0' }}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0"
+                style={{ background: '#EEF3FF', color: '#2563EB' }}>
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-gray-900 leading-tight truncate">{g.nama}</div>
+                <div className="text-xs text-indigo-500 mt-0.5 truncate">{g.email}</div>
+              </div>
+              <button
+                onClick={() => copyEmail(g.email)}
+                className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg font-semibold transition-all"
+                style={copied === g.email
+                  ? { background: '#DCFCE7', color: '#059669' }
+                  : { background: '#EEF3FF', color: '#2563EB' }}>
+                {copied === g.email ? '✓ Salin' : '📋'}
+              </button>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-xs">Tiada guru dijumpai</div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

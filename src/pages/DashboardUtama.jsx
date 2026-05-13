@@ -45,21 +45,24 @@ export default function DashboardUtama() {
   const [murid, setMurid] = useState([])
   const [showLaporan, setShowLaporan] = useState(false)
   const [bulanLaporan, setBulanLaporan] = useState(new Date().toISOString().slice(0, 7))
+  const [bilikTutup, setBilikTutup] = useState([])
 
   useEffect(() => {
     async function fetchAll() {
-      const [t, p, b, g, m] = await Promise.all([
+      const [t, p, b, g, m, bt] = await Promise.all([
         supabase.from('tempahan_bilik').select('*').order('created_at', { ascending: false }),
         supabase.from('peminjaman_ict').select('*').order('created_at', { ascending: false }),
         supabase.from('barang_ict').select('*'),
         supabase.from('guru_delima').select('*'),
         supabase.from('murid_delima').select('*'),
+        supabase.from('bilik_tutup').select('*').order('tarikh_mula'),
       ])
       setTempahan(t.data ?? [])
       setPeminjaman(p.data ?? [])
       setBarang(b.data ?? [])
       setGuru(g.data ?? [])
       setMurid(m.data ?? [])
+      setBilikTutup(bt.data ?? [])
       setLoading(false)
     }
     fetchAll()
@@ -91,6 +94,18 @@ export default function DashboardUtama() {
     { name: 'Tidak Aktif',   value: [...guru, ...murid].filter(x => x.status === 'tidak_aktif').length },
   ].filter(d => d.value > 0)
 
+  const closuresToday = bilikTutup.filter(t => {
+    if (TODAY < t.tarikh_mula || TODAY > t.tarikh_tamat) return false
+    if (t.masa_mula && t.masa_tamat) {
+      const now = new Date()
+      const nowM = now.getHours() * 60 + now.getMinutes()
+      const [sh, sm] = t.masa_mula.split(':').map(Number)
+      const [eh, em] = t.masa_tamat.split(':').map(Number)
+      return nowM >= sh * 60 + sm && nowM < eh * 60 + em
+    }
+    return true
+  })
+
   const alerts = [
     pendingTempahan > 0 && {
       color: '#D97706', bg: '#FFFBEB', border: '#FDE68A',
@@ -102,6 +117,13 @@ export default function DashboardUtama() {
       icon: '⚠️', title: `${lewatICT} Barang ICT Lewat Dipulangkan`,
       desc: 'Hubungi peminjam untuk pulangkan barang segera.', route: '/ict',
     },
+    ...closuresToday.map(t => ({
+      color: '#DC2626', bg: '#FFF1F2', border: '#FCA5A5',
+      icon: '🚫',
+      title: `${t.bilik} — ${t.masa_mula ? `Ditutup Sementara (${t.masa_mula}–${t.masa_tamat})` : 'Ditutup / Penyelenggaraan'}`,
+      desc: t.sebab || (t.masa_mula ? 'Penutupan sementara hari ini.' : `${t.tarikh_mula} → ${t.tarikh_tamat}`),
+      route: '/tempahan',
+    })),
   ].filter(Boolean)
 
   const kpiCards = [
