@@ -51,7 +51,7 @@ export default function SistemIDDelima() {
   const [toast, setToast]   = useState(null)
   const [carian, setCarian] = useState('')
 
-  const [formGuru, setFormGuru] = useState({ nama: '', no_pekerja: '', email: '', no_tel: '', subjek: '', gred: 'DG41' })
+  const [formGuru, setFormGuru] = useState({ nama: '', email: '' })
   const [formMurid, setFormMurid] = useState({ nama: '', no_kad: '', email: '', kelas: '', jantina: 'L' })
   const [pwForm, setPwForm] = useState({ baru: '', sahkan: '', show: false })
   const [importing, setImporting] = useState(false)
@@ -166,13 +166,13 @@ export default function SistemIDDelima() {
   }
 
   async function tambahGuru() {
-    if (!formGuru.nama || !formGuru.no_pekerja || !formGuru.email) {
+    if (!formGuru.nama || !formGuru.email) {
       showToast('Sila lengkapkan maklumat wajib!', 'error'); return
     }
     const id_delima = `AIR2024${String(guru.length + 1).padStart(3,'0')}`
     const { error } = await supabase.from('guru_delima').insert([{ ...formGuru, id_delima, status: 'aktif', last_login: '—' }])
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
-    setFormGuru({ nama: '', no_pekerja: '', email: '', no_tel: '', subjek: '', gred: 'DG41' })
+    setFormGuru({ nama: '', email: '' })
     showToast('✅ ID DELIMA guru berjaya didaftarkan!'); fetchData()
     setTab('senarai'); setSubTab('guru')
   }
@@ -237,7 +237,6 @@ export default function SistemIDDelima() {
     { id: 'dashboard', label: '🏠 Utama' },
     { id: 'daftar',    label: '➕ Daftar' },
     { id: 'senarai',   label: '👥 Senarai' },
-    { id: 'staf',      label: '📋 Staf' },
     { id: 'admin',     label: '⚙️ Admin' },
   ]
 
@@ -380,11 +379,8 @@ export default function SistemIDDelima() {
             <div className="neo-card p-5 space-y-4">
               <div className="text-sm font-bold text-violet-400">📝 Daftar ID DELIMA Guru Baru</div>
               {[
-                { label: 'Nama Penuh *',  field: 'nama',       placeholder: 'Nama penuh guru' },
-                { label: 'No. Pekerja *', field: 'no_pekerja', placeholder: 'Contoh: G10239' },
-                { label: 'E-mel *',       field: 'email',      placeholder: 'nama@moe.edu.my' },
-                { label: 'No. Telefon',   field: 'no_tel',     placeholder: '01x-xxxxxxx' },
-                { label: 'Subjek',        field: 'subjek',     placeholder: 'Contoh: Sains' },
+                { label: 'Nama Penuh *', field: 'nama',  placeholder: 'Nama penuh guru' },
+                { label: 'E-mel *',      field: 'email', placeholder: 'nama@moe-dl.edu.my' },
               ].map(f => (
                 <div key={f.field}>
                   <label className="block text-xs font-semibold text-violet-400 mb-1.5">{f.label}</label>
@@ -393,13 +389,6 @@ export default function SistemIDDelima() {
                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400" />
                 </div>
               ))}
-              <div>
-                <label className="block text-xs font-semibold text-violet-400 mb-1.5">Gred</label>
-                <select value={formGuru.gred} onChange={e => setFormGuru(p => ({ ...p, gred: e.target.value }))}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-violet-400">
-                  {GRED_LIST.map(g => <option key={g}>{g}</option>)}
-                </select>
-              </div>
               <div className="rounded-xl p-3 text-xs" style={{ background: '#EEF3FF', border: '2px solid #2563EB', color: '#1D4ED8' }}>
                 ℹ️ ID DELIMA format AIR2024XXX akan dijana automatik.
               </div>
@@ -523,25 +512,25 @@ export default function SistemIDDelima() {
           {/* ── GURU flat list ── */}
           {subTab === 'guru' && (
             <div className="space-y-2.5">
-              {filteredGuru.map(item => (
-                <div key={item.id}
-                  className="neo-card p-4 flex items-center gap-3 cursor-pointer"
-                  onClick={() => openModal('guru', item)}>
-                  <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">👨‍🏫</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-gray-900">{item.nama}</div>
-                    <div className="text-xs font-mono text-gray-500 mt-0.5">{item.id_delima}</div>
-                    <div className="text-xs text-gray-500">{item.subjek} • {item.gred} • {item.no_pekerja}</div>
-                  </div>
-                  <StatusBadge status={item.status} map={STATUS_GURU} />
-                </div>
-              ))}
-              {filteredGuru.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <div className="text-5xl mb-3">📭</div>
-                  <div className="text-sm">Tiada rekod ditemui</div>
-                </div>
+              {filteredGuru.length > 0 && (
+                <>
+                  <div className="text-xs font-bold text-violet-400 px-1">Guru Berdaftar DELIMA ({filteredGuru.length})</div>
+                  {filteredGuru.map(item => (
+                    <div key={item.id}
+                      className="neo-card p-4 flex items-center gap-3 cursor-pointer"
+                      onClick={() => openModal('guru', item)}>
+                      <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">👨‍🏫</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-gray-900">{item.nama}</div>
+                        <div className="text-xs font-mono text-gray-500 mt-0.5">{item.id_delima}</div>
+                        <div className="text-xs text-gray-500">{item.email}</div>
+                      </div>
+                      <StatusBadge status={item.status} map={STATUS_GURU} />
+                    </div>
+                  ))}
+                </>
               )}
+              <StafDelima />
             </div>
           )}
 
@@ -667,11 +656,6 @@ export default function SistemIDDelima() {
         </>
       )}
 
-      {/* ── STAF ── */}
-      {tab === 'staf' && (
-        <StafDelima />
-      )}
-
       {/* ── ADMIN ── */}
       {tab === 'admin' && (
         <AdminGate>
@@ -699,11 +683,16 @@ export default function SistemIDDelima() {
               <div className="space-y-2.5 mt-4">
                 {guru.map(item => (
                   <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openModal('guru', item)}>
+                    <div className="flex-1 min-w-0">
                       <div className="text-xs font-bold text-gray-900 truncate">{item.nama}</div>
-                      <div className="text-xs font-mono text-gray-500">{item.id_delima} • {item.gred}</div>
+                      <div className="text-xs font-mono text-gray-500">{item.id_delima}</div>
+                      <div className="text-xs text-gray-400 truncate">{item.email}</div>
                     </div>
                     <StatusBadge status={item.status} map={STATUS_GURU} />
+                    <button onClick={() => { setPwForm({ baru: '', sahkan: '', show: false }); setEditMode(true); setEditData({ nama: item.nama, no_pekerja: item.no_pekerja || '', email: item.email || '', no_tel: item.no_tel || '', subjek: item.subjek || '', gred: item.gred || 'DG41' }); setModal({ jenis: 'guru', data: item }) }}
+                      className="text-xs text-violet-500 hover:text-violet-400 px-2 py-1 rounded-lg hover:bg-violet-100 transition-colors flex-shrink-0">
+                      ✏️
+                    </button>
                     <button onClick={() => deleteRecord('guru', item.id)}
                       className="text-xs text-red-500 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-900/30 transition-colors flex-shrink-0">
                       🗑️
