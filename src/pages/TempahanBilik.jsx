@@ -338,15 +338,17 @@ export default function TempahanBilik() {
       )
     : null
 
-  // Had 5 tempahan aktif (pending + approved) per guru
-  const TEMPAHAN_MAX = 5
-  const guruAktifCount = form.guru
+  // Kuota 10 approved per guru per bulan (based on tarikh booking)
+  const KUOTA_BULAN = 10
+  const formBulan = form.tarikh ? form.tarikh.slice(0, 7) : TODAY.slice(0, 7)
+  const guruApprovedBulan = form.guru
     ? tempahan.filter(t =>
         normNama(t.guru) === normNama(form.guru) &&
-        (t.status === 'pending' || t.status === 'approved')
+        t.tarikh.slice(0, 7) === formBulan &&
+        t.status === 'approved'
       ).length
     : 0
-  const hadTempahanCecah = guruAktifCount >= TEMPAHAN_MAX
+  const hadKuotaCecah = guruApprovedBulan >= KUOTA_BULAN
 
   const bilikDitutup = form.bilik && form.tarikh
     ? getTutupInfo(form.bilik, form.tarikh)
@@ -376,8 +378,8 @@ export default function TempahanBilik() {
         showToast(`🚫 ${form.bilik} ditutup sehingga ${bilikDitutup.tarikh_tamat}!`, 'error'); return
       }
     }
-    if (hadTempahanCecah) {
-      showToast(`⚠️ Had ${TEMPAHAN_MAX} tempahan aktif dicapai! Tunggu keputusan admin dahulu.`, 'error'); return
+    if (hadKuotaCecah) {
+      showToast(`⚠️ Kuota ${KUOTA_BULAN} tempahan bulan ini telah habis! Cuba bulan depan.`, 'error'); return
     }
     if (guruKonflik) {
       showToast(`⚠️ Anda sudah ada tempahan pada masa ini di ${guruKonflik.bilik}!`, 'error'); return
@@ -408,10 +410,32 @@ export default function TempahanBilik() {
   }
 
   async function bulkApprove() {
-    const pendingIds = tempahan.filter(t => t.status === 'pending').map(t => t.id)
-    if (!pendingIds.length) return
-    await supabase.from('tempahan_bilik').update({ status: 'approved' }).in('id', pendingIds)
-    showToast(`✅ ${pendingIds.length} tempahan diluluskan sekaligus!`)
+    const pending = tempahan.filter(t => t.status === 'pending')
+    if (!pending.length) return
+    // Track approved count per guru+bulan, skip if quota exceeded
+    const approvedTracker = {}
+    tempahan.filter(t => t.status === 'approved').forEach(t => {
+      const key = `${normNama(t.guru)}|${t.tarikh.slice(0, 7)}`
+      approvedTracker[key] = (approvedTracker[key] ?? 0) + 1
+    })
+    const toApprove = []
+    const skipped = []
+    for (const t of pending) {
+      const key = `${normNama(t.guru)}|${t.tarikh.slice(0, 7)}`
+      const count = approvedTracker[key] ?? 0
+      if (count < KUOTA_BULAN) {
+        toApprove.push(t.id)
+        approvedTracker[key] = count + 1
+      } else {
+        skipped.push(t.guru)
+      }
+    }
+    if (!toApprove.length) {
+      showToast(`⚠️ Semua tempahan telah melebihi kuota bulan!`, 'error'); return
+    }
+    await supabase.from('tempahan_bilik').update({ status: 'approved' }).in('id', toApprove)
+    const skipMsg = skipped.length ? ` (${skipped.length} dilangkau — kuota penuh)` : ''
+    showToast(`✅ ${toApprove.length} tempahan diluluskan!${skipMsg}`)
     fetchTempahan()
   }
 
@@ -445,6 +469,18 @@ export default function TempahanBilik() {
 
   async function updateStatus(id, status) {
     const rec = tempahan.find(t => t.id === id)
+    if (status === 'approved' && rec) {
+      const bulan = rec.tarikh.slice(0, 7)
+      const approvedCount = tempahan.filter(t =>
+        normNama(t.guru) === normNama(rec.guru) &&
+        t.tarikh.slice(0, 7) === bulan &&
+        t.status === 'approved' &&
+        t.id !== id
+      ).length
+      if (approvedCount >= KUOTA_BULAN) {
+        showToast(`⚠️ Kuota ${rec.guru} bulan ${bulan} telah penuh (${KUOTA_BULAN}/10)!`, 'error'); return
+      }
+    }
     const { error } = await supabase.from('tempahan_bilik').update({ status }).eq('id', id)
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
     setModal(null)
@@ -876,24 +912,24 @@ export default function TempahanBilik() {
             </div>
           )}
 
-          {/* Had tempahan aktif indicator */}
-          {form.guru && guruAktifCount > 0 && (
+          {/* Kuota bulan indicator */}
+          {form.guru && (
             <div className={`rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
-              hadTempahanCecah
+              hadKuotaCecah
                 ? 'bg-red-50 border border-red-200 text-red-600'
-                : guruAktifCount >= TEMPAHAN_MAX - 1
+                : guruApprovedBulan >= KUOTA_BULAN - 2
                 ? 'bg-amber-50 border border-amber-200 text-amber-700'
                 : 'bg-sky-50 border border-sky-200 text-sky-700'
             }`}>
-              {hadTempahanCecah
-                ? <>🔴 Had dicapai: <span className="font-bold">{guruAktifCount}/{TEMPAHAN_MAX}</span> tempahan aktif. Tunggu keputusan admin.</>
-                : <>{guruAktifCount >= TEMPAHAN_MAX - 1 ? '🟡' : '🔵'} Tempahan aktif: <span className="font-bold">{guruAktifCount}/{TEMPAHAN_MAX}</span></>
+              {hadKuotaCecah
+                ? <>🔴 Kuota bulan ini penuh: <span className="font-bold">{guruApprovedBulan}/{KUOTA_BULAN}</span> tempahan diluluskan. Cuba bulan depan.</>
+                : <>{guruApprovedBulan >= KUOTA_BULAN - 2 ? '🟡' : '🔵'} Kuota bulan ini: <span className="font-bold">{guruApprovedBulan}/{KUOTA_BULAN}</span> tempahan diluluskan</>
               }
             </div>
           )}
 
           {/* Guru konflik masa (bilik lain) */}
-          {guruKonflik && !hadTempahanCecah && (
+          {guruKonflik && !hadKuotaCecah && (
             <div className="rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700">
               🟠 Anda sudah ada tempahan pada masa ini di <span className="font-bold ml-1">{guruKonflik.bilik}</span>
               {guruKonflik.status === 'pending' ? ' (menunggu lulus)' : ''}
@@ -941,7 +977,7 @@ export default function TempahanBilik() {
 
           <button onClick={submitTempahan} disabled={
             (bilikDitutup && (!bilikDitutup.masa_mula || (masaRange && hasOverlap(masaRange, `${bilikDitutup.masa_mula}–${bilikDitutup.masa_tamat}`)))) ||
-            hadTempahanCecah || !!guruKonflik
+            hadKuotaCecah || !!guruKonflik
           }
             className="w-full py-3.5 rounded-2xl text-sm font-black neo-btn disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: '#2563EB', color: '#fff', fontFamily: "'Fredoka', sans-serif" }}>
@@ -1125,15 +1161,29 @@ export default function TempahanBilik() {
               )}
             </div>
             <div className="space-y-3 mt-4">
-              {tempahan.filter(t => t.status === 'pending').map(t => (
-                <div key={t.id} className="rounded-2xl p-4" style={{ background: '#EEF3FF', border: '2px solid #111827' }}>
+              {tempahan.filter(t => t.status === 'pending').map(t => {
+                const tBulan = t.tarikh.slice(0, 7)
+                const approvedBulanIni = tempahan.filter(x =>
+                  normNama(x.guru) === normNama(t.guru) &&
+                  x.tarikh.slice(0, 7) === tBulan &&
+                  x.status === 'approved'
+                ).length
+                const kuotaPenuh = approvedBulanIni >= KUOTA_BULAN
+                return (
+                <div key={t.id} className="rounded-2xl p-4" style={{ background: kuotaPenuh ? '#FFF1F2' : '#EEF3FF', border: `2px solid ${kuotaPenuh ? '#FCA5A5' : '#111827'}` }}>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🏫</div>
                     <div className="flex-1">
-                      <div className="text-sm font-bold text-gray-900">{t.guru}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="text-sm font-bold text-gray-900">{t.guru}</div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${kuotaPenuh ? 'bg-red-100 text-red-600' : approvedBulanIni >= KUOTA_BULAN - 2 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                          {approvedBulanIni}/{KUOTA_BULAN} bulan ini
+                        </span>
+                      </div>
                       <div className="text-xs text-gray-500 mt-0.5">{t.bilik}</div>
                       <div className="text-xs text-gray-500">{t.tarikh} • {t.masa}</div>
                       {t.tujuan && <div className="text-xs text-gray-500 mt-1 italic">"{t.tujuan}"</div>}
+                      {kuotaPenuh && <div className="text-xs font-bold text-red-600 mt-1">⚠️ Kuota penuh — tidak boleh diluluskan</div>}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-3">
@@ -1154,7 +1204,8 @@ export default function TempahanBilik() {
                     </button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
               {tempahan.filter(t => t.status === 'pending').length === 0 && (
                 <div className="text-center py-8 text-gray-500 text-xs">Tiada tempahan menunggu kelulusan</div>
               )}
