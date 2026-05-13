@@ -270,7 +270,17 @@ export default function TempahanBilik() {
     fetchBilik()
   }
 
-  useEffect(() => { fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim() }, [])
+  useEffect(() => {
+    fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim()
+
+    const channel = supabase
+      .channel('tempahan-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tempahan_bilik' }, fetchTempahan)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bilik_tutup' }, fetchBilikTutup)
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   useEffect(() => { if (form.guru) setSearchGuru(form.guru) }, [form.guru])
   useEffect(() => { if (form.bilik) setSearchBilik(form.bilik) }, [form.bilik])
