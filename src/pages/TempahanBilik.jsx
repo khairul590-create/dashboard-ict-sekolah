@@ -146,6 +146,10 @@ export default function TempahanBilik() {
   const [syaratModal, setSyaratModal] = useState(false)
   const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
 
+  const [kuotaOverride, setKuotaOverride] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('guru_kuota_override') || '{}') } catch { return {} }
+  })
+
   const [takwimList, setTakwimList] = useState([])
   const [formTakwim, setFormTakwim] = useState({ tajuk: '', tarikh: TODAY, jenis: 'program', catatan: '' })
 
@@ -340,6 +344,22 @@ export default function TempahanBilik() {
 
   // Kuota 10 approved per guru per bulan (based on tarikh booking)
   const KUOTA_BULAN = 10
+  const KUOTA_TAMBAH = 5
+
+  function getKuotaGuru(guru, bulan) {
+    const key = `${normNama(guru)}|${bulan}`
+    return KUOTA_BULAN + (kuotaOverride[key] ?? 0)
+  }
+
+  function tambahKuotaGuru(guru, bulan) {
+    const key = `${normNama(guru)}|${bulan}`
+    const extra = (kuotaOverride[key] ?? 0) + KUOTA_TAMBAH
+    const newOverride = { ...kuotaOverride, [key]: extra }
+    setKuotaOverride(newOverride)
+    localStorage.setItem('guru_kuota_override', JSON.stringify(newOverride))
+    return KUOTA_BULAN + extra
+  }
+
   const formBulan = form.tarikh ? form.tarikh.slice(0, 7) : TODAY.slice(0, 7)
   const guruApprovedBulan = form.guru
     ? tempahan.filter(t =>
@@ -348,7 +368,8 @@ export default function TempahanBilik() {
         t.status === 'approved'
       ).length
     : 0
-  const hadKuotaCecah = guruApprovedBulan >= KUOTA_BULAN
+  const kuotaFormGuru = form.guru ? getKuotaGuru(form.guru, formBulan) : KUOTA_BULAN
+  const hadKuotaCecah = guruApprovedBulan >= kuotaFormGuru
 
   const bilikDitutup = form.bilik && form.tarikh
     ? getTutupInfo(form.bilik, form.tarikh)
@@ -379,7 +400,7 @@ export default function TempahanBilik() {
       }
     }
     if (hadKuotaCecah) {
-      showToast(`⚠️ Kuota ${KUOTA_BULAN} tempahan bulan ini telah habis! Cuba bulan depan.`, 'error'); return
+      showToast(`⚠️ Kuota ${kuotaFormGuru} tempahan bulan ini telah habis! Cuba bulan depan.`, 'error'); return
     }
     if (guruKonflik) {
       showToast(`⚠️ Anda sudah ada tempahan pada masa ini di ${guruKonflik.bilik}!`, 'error'); return
@@ -423,7 +444,8 @@ export default function TempahanBilik() {
     for (const t of pending) {
       const key = `${normNama(t.guru)}|${t.tarikh.slice(0, 7)}`
       const count = approvedTracker[key] ?? 0
-      if (count < KUOTA_BULAN) {
+      const effectiveKuota = getKuotaGuru(t.guru, t.tarikh.slice(0, 7))
+      if (count < effectiveKuota) {
         toApprove.push(t.id)
         approvedTracker[key] = count + 1
       } else {
@@ -477,8 +499,10 @@ export default function TempahanBilik() {
         t.status === 'approved' &&
         t.id !== id
       ).length
-      if (approvedCount >= KUOTA_BULAN) {
-        showToast(`⚠️ Kuota ${rec.guru} bulan ${bulan} telah penuh (${KUOTA_BULAN}/10)!`, 'error'); return
+      const effectiveKuota = getKuotaGuru(rec.guru, bulan)
+      if (approvedCount >= effectiveKuota) {
+        const kuotaBaru = tambahKuotaGuru(rec.guru, bulan)
+        showToast(`ℹ️ Kuota ${rec.guru} ditambah +${KUOTA_TAMBAH} → ${kuotaBaru}/bulan`)
       }
     }
     const { error } = await supabase.from('tempahan_bilik').update({ status }).eq('id', id)
@@ -917,13 +941,13 @@ export default function TempahanBilik() {
             <div className={`rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
               hadKuotaCecah
                 ? 'bg-red-50 border border-red-200 text-red-600'
-                : guruApprovedBulan >= KUOTA_BULAN - 2
+                : guruApprovedBulan >= kuotaFormGuru - 2
                 ? 'bg-amber-50 border border-amber-200 text-amber-700'
                 : 'bg-sky-50 border border-sky-200 text-sky-700'
             }`}>
               {hadKuotaCecah
-                ? <>🔴 Kuota bulan ini penuh: <span className="font-bold">{guruApprovedBulan}/{KUOTA_BULAN}</span> tempahan diluluskan. Cuba bulan depan.</>
-                : <>{guruApprovedBulan >= KUOTA_BULAN - 2 ? '🟡' : '🔵'} Kuota bulan ini: <span className="font-bold">{guruApprovedBulan}/{KUOTA_BULAN}</span> tempahan diluluskan</>
+                ? <>🔴 Kuota bulan ini penuh: <span className="font-bold">{guruApprovedBulan}/{kuotaFormGuru}</span> tempahan diluluskan. Cuba bulan depan.</>
+                : <>{guruApprovedBulan >= kuotaFormGuru - 2 ? '🟡' : '🔵'} Kuota bulan ini: <span className="font-bold">{guruApprovedBulan}/{kuotaFormGuru}</span> tempahan diluluskan</>
               }
             </div>
           )}
@@ -1168,22 +1192,23 @@ export default function TempahanBilik() {
                   x.tarikh.slice(0, 7) === tBulan &&
                   x.status === 'approved'
                 ).length
-                const kuotaPenuh = approvedBulanIni >= KUOTA_BULAN
+                const effectiveKuota = getKuotaGuru(t.guru, tBulan)
+                const kuotaPenuh = approvedBulanIni >= effectiveKuota
                 return (
-                <div key={t.id} className="rounded-2xl p-4" style={{ background: kuotaPenuh ? '#FFF1F2' : '#EEF3FF', border: `2px solid ${kuotaPenuh ? '#FCA5A5' : '#111827'}` }}>
+                <div key={t.id} className="rounded-2xl p-4" style={{ background: kuotaPenuh ? '#FFFBEB' : '#EEF3FF', border: `2px solid ${kuotaPenuh ? '#FCD34D' : '#111827'}` }}>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🏫</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="text-sm font-bold text-gray-900">{t.guru}</div>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${kuotaPenuh ? 'bg-red-100 text-red-600' : approvedBulanIni >= KUOTA_BULAN - 2 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
-                          {approvedBulanIni}/{KUOTA_BULAN} bulan ini
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${kuotaPenuh ? 'bg-amber-100 text-amber-700' : approvedBulanIni >= effectiveKuota - 2 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                          {approvedBulanIni}/{effectiveKuota} bulan ini
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">{t.bilik}</div>
                       <div className="text-xs text-gray-500">{t.tarikh} • {t.masa}</div>
                       {t.tujuan && <div className="text-xs text-gray-500 mt-1 italic">"{t.tujuan}"</div>}
-                      {kuotaPenuh && <div className="text-xs font-bold text-red-600 mt-1">⚠️ Kuota penuh — tidak boleh diluluskan</div>}
+                      {kuotaPenuh && <div className="text-xs font-bold text-amber-600 mt-1">⚠️ Kuota penuh — luluskan untuk tambah +{KUOTA_TAMBAH} kuota automatik</div>}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-3">
