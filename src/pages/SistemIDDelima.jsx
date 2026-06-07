@@ -50,6 +50,7 @@ export default function SistemIDDelima() {
   const [modal, setModal]   = useState(null)
   const [toast, setToast]   = useState(null)
   const [carian, setCarian] = useState('')
+  const [filterKelas, setFilterKelas] = useState('semua')
 
   const [formGuru, setFormGuru] = useState({ nama: '', email: '' })
   const [formMurid, setFormMurid] = useState({ nama: '', no_kad: '', email: '', kelas: '', jantina: 'L' })
@@ -509,6 +510,22 @@ export default function SistemIDDelima() {
               className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400" />
           </div>
 
+          {/* Filter kelas — murid sahaja */}
+          {subTab === 'murid' && (
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🎓</span>
+              <select value={filterKelas} onChange={e => setFilterKelas(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:border-violet-400 appearance-none cursor-pointer">
+                <option value="semua">📋 Semua Kelas (Tahun 1–6)</option>
+                {['1','2','3','4','5','6'].map(tahun => (
+                  <optgroup key={tahun} label={`Tahun ${tahun}`}>
+                    {(kelasConfig[tahun] ?? []).map(k => <option key={k} value={k}>{k}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* ── GURU flat list ── */}
           {subTab === 'guru' && (
             <div className="space-y-2.5">
@@ -538,7 +555,9 @@ export default function SistemIDDelima() {
           {subTab === 'murid' && (
             <div className="space-y-4">
               {['1','2','3','4','5','6'].map(tahun => {
-                const kelasTahun = kelasConfig[tahun] ?? []
+                let kelasTahun = kelasConfig[tahun] ?? []
+                if (filterKelas !== 'semua') kelasTahun = kelasTahun.filter(k => k === filterKelas)
+                if (kelasTahun.length === 0) return null
                 const grouped = getMuridByKelas(kelasTahun)
                 const totalTahun = grouped.reduce((a, g) => a + g.senarai.length, 0)
                 if (carian && totalTahun === 0) return null
@@ -616,7 +635,7 @@ export default function SistemIDDelima() {
               })}
 
               {/* Lain-lain (kelas tidak dikenali) */}
-              {muridLainLain.length > 0 && (
+              {filterKelas === 'semua' && muridLainLain.length > 0 && (
                 <div className="bg-white border border-amber-200 rounded-2xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-amber-50">
                     <div className="flex items-center gap-2">
