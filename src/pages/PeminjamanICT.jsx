@@ -6,6 +6,7 @@ import SectionHeader from '../components/SectionHeader'
 import AdminGate from '../components/AdminGate'
 import { useAdmin } from '../contexts/AdminContext'
 import { QRCodeSVG } from 'qrcode.react'
+import { todayLocal } from '../lib/dateUtil'
 
 const KATEGORI_ICON = {
   Laptop: '💻', Projektor: '📽️', Tablet: '📱',
@@ -34,7 +35,7 @@ const LOG_ICONS = {
   edit_barang:       '✏️',
 }
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayLocal()
 const KATEGORI_LIST = ['Laptop','Projektor','Tablet','Kamera','Audio','Lain']
 
 function getKategoriIcon(nama) {

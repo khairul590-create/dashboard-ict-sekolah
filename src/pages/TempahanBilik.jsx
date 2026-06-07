@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import SectionHeader from '../components/SectionHeader'
 import AdminGate from '../components/AdminGate'
 import { useAdmin } from '../contexts/AdminContext'
+import { todayLocal } from '../lib/dateUtil'
 
 const ICON_LIST = ['🏫','🔬','🧪','💻','🖥️','⚙️','📚','🏛️','📽️','🎨','🎭','🏋️','🔭','🧬','📐']
 
@@ -108,7 +109,7 @@ function durasiLabel(mula, tamat) {
   return `${j > 0 ? j + ' jam ' : ''}${m > 0 ? m + ' minit' : ''}`.trim()
 }
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayLocal()
 
 export default function TempahanBilik() {
   const { isAdmin } = useAdmin()

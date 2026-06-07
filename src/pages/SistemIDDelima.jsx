@@ -5,6 +5,19 @@ import Layout from '../components/Layout'
 import SectionHeader from '../components/SectionHeader'
 import AdminGate from '../components/AdminGate'
 import { useAdmin } from '../contexts/AdminContext'
+import { todayLocal } from '../lib/dateUtil'
+
+// Jana ID seterusnya guna nombor TERTINGGI sedia ada + 1.
+// Guna length+1 buat ID langgar bila ada rekod dipadam (nombor diguna semula).
+function nextDelimaId(list, prefix) {
+  const max = list.reduce((m, x) => {
+    const id = String(x.id_delima || '')
+    if (!id.startsWith(prefix)) return m
+    const n = parseInt(id.slice(prefix.length), 10)
+    return Number.isNaN(n) ? m : Math.max(m, n)
+  }, 0)
+  return `${prefix}${String(max + 1).padStart(3, '0')}`
+}
 
 const STATUS_GURU = {
   aktif:       { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Aktif' },
@@ -97,7 +110,7 @@ export default function SistemIDDelima() {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = `delima_${jenis}_${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `delima_${jenis}_${todayLocal()}.csv`
     a.click(); URL.revokeObjectURL(url)
   }
 
@@ -170,7 +183,7 @@ export default function SistemIDDelima() {
     if (!formGuru.nama || !formGuru.email) {
       showToast('Sila lengkapkan maklumat wajib!', 'error'); return
     }
-    const id_delima = `AIR2024${String(guru.length + 1).padStart(3,'0')}`
+    const id_delima = nextDelimaId(guru, 'AIR2024')
     const { error } = await supabase.from('guru_delima').insert([{ ...formGuru, id_delima, status: 'aktif', last_login: '—' }])
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }
     setFormGuru({ nama: '', email: '' })
@@ -182,7 +195,7 @@ export default function SistemIDDelima() {
     if (!formMurid.nama || !formMurid.no_kad || !formMurid.kelas) {
       showToast('Sila lengkapkan maklumat wajib!', 'error'); return
     }
-    const id_delima = `MR2024${String(murid.length + 1).padStart(3,'0')}`
+    const id_delima = nextDelimaId(murid, 'MR2024')
     const email = formMurid.email || `${formMurid.no_kad.replace(/-/g,'')}@murid.edu.my`
     const { error } = await supabase.from('murid_delima').insert([{ ...formMurid, id_delima, email, status: 'aktif', last_login: '—' }])
     if (error) { showToast('Ralat: ' + error.message, 'error'); return }

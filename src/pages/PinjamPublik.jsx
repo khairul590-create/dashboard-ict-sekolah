@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { todayLocal } from '../lib/dateUtil'
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayLocal()
 
 export default function PinjamPublik() {
   const { barangId } = useParams()

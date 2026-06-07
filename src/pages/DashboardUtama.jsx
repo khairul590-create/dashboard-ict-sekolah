@@ -6,6 +6,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
+import { todayLocal, monthLocal } from '../lib/dateUtil'
 
 const MONTHS_MS = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogs','Sep','Okt','Nov','Dis']
 
@@ -44,7 +45,7 @@ export default function DashboardUtama() {
   const [guru, setGuru] = useState([])
   const [murid, setMurid] = useState([])
   const [showLaporan, setShowLaporan] = useState(false)
-  const [bulanLaporan, setBulanLaporan] = useState(new Date().toISOString().slice(0, 7))
+  const [bulanLaporan, setBulanLaporan] = useState(monthLocal())
   const [bilikTutup, setBilikTutup] = useState([])
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function DashboardUtama() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const TODAY = new Date().toISOString().slice(0, 10)
+  const TODAY = todayLocal()
   const pendingTempahan = tempahan.filter(t => t.status === 'pending').length
   const approvedTempahan = tempahan.filter(t => t.status === 'approved').length
   const lewatICT = peminjaman.filter(p => p.status === 'lewat' || (p.status === 'dipinjam' && p.tarikh_pulang < TODAY)).length
