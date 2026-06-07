@@ -291,8 +291,11 @@ export default function SistemIDDelima() {
         ))}
       </div>
 
+      {/* Data DELIMA (murid/guru) = admin sahaja. Public nampak prompt login. */}
+      {!isAdmin && tab !== 'admin' && <AdminGate />}
+
       {/* ── DASHBOARD ── */}
-      {tab === 'dashboard' && (
+      {isAdmin && tab === 'dashboard' && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -374,7 +377,7 @@ export default function SistemIDDelima() {
       )}
 
       {/* ── DAFTAR ── */}
-      {tab === 'daftar' && (
+      {isAdmin && tab === 'daftar' && (
         <>
           <div className="flex gap-2 rounded-2xl p-1.5"
             style={{ background: '#FFFFFF', border: '2px solid #111827', boxShadow: '3px 3px 0 #111827' }}>
@@ -470,7 +473,7 @@ export default function SistemIDDelima() {
       )}
 
       {/* ── SENARAI ── */}
-      {tab === 'senarai' && (
+      {isAdmin && tab === 'senarai' && (
         <>
           <input ref={importGuruRef}  type="file" accept=".csv" className="hidden" onChange={e => importCSV('guru', e)} />
           <input ref={importMuridRef} type="file" accept=".csv" className="hidden" onChange={e => importCSV('murid', e)} />
