@@ -147,17 +147,9 @@ export default function TempahanBilik() {
   const [syaratModal, setSyaratModal] = useState(false)
   const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
 
-  const [kuotaOverride, setKuotaOverride] = useState(() => {
-    // Reset override lama (asas kuota dah naik 10→20). Clear sekali guna versi key.
-    try {
-      if (localStorage.getItem('guru_kuota_override_v') !== '2') {
-        localStorage.removeItem('guru_kuota_override')
-        localStorage.setItem('guru_kuota_override_v', '2')
-        return {}
-      }
-      return JSON.parse(localStorage.getItem('guru_kuota_override') || '{}')
-    } catch { return {} }
-  })
+  // Kuota override disimpan di Supabase (app_settings key 'kuota_override')
+  // supaya sync antara semua device. Bentuk: { "guru|YYYY-MM": extra }
+  const [kuotaOverride, setKuotaOverride] = useState({})
 
   const [takwimList, setTakwimList] = useState([])
   const [formTakwim, setFormTakwim] = useState({ tajuk: '', tarikh: TODAY, jenis: 'program', catatan: '' })
@@ -191,6 +183,12 @@ export default function TempahanBilik() {
   async function fetchTakwim() {
     const { data } = await supabase.from('takwim_ict').select('*').order('tarikh')
     setTakwimList(data ?? [])
+  }
+
+  async function fetchKuotaOverride() {
+    const { data } = await supabase.from('app_settings')
+      .select('value').eq('key', 'kuota_override').maybeSingle()
+    setKuotaOverride(data?.value ?? {})
   }
 
   async function tambahTakwim() {
@@ -285,12 +283,13 @@ export default function TempahanBilik() {
   }
 
   useEffect(() => {
-    fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim()
+    fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim(); fetchKuotaOverride()
 
     const channel = supabase
       .channel('tempahan-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tempahan_bilik' }, fetchTempahan)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bilik_tutup' }, fetchBilikTutup)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, fetchKuotaOverride)
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -360,12 +359,13 @@ export default function TempahanBilik() {
     return KUOTA_BULAN + (kuotaOverride[key] ?? 0)
   }
 
-  function tambahKuotaGuru(guru, bulan) {
+  async function tambahKuotaGuru(guru, bulan) {
     const key = `${normNama(guru)}|${bulan}`
     const extra = (kuotaOverride[key] ?? 0) + KUOTA_TAMBAH
     const newOverride = { ...kuotaOverride, [key]: extra }
     setKuotaOverride(newOverride)
-    localStorage.setItem('guru_kuota_override', JSON.stringify(newOverride))
+    await supabase.from('app_settings')
+      .upsert({ key: 'kuota_override', value: newOverride }, { onConflict: 'key' })
     return KUOTA_BULAN + extra
   }
 
@@ -510,7 +510,7 @@ export default function TempahanBilik() {
       ).length
       const effectiveKuota = getKuotaGuru(rec.guru, bulan)
       if (approvedCount >= effectiveKuota) {
-        const kuotaBaru = tambahKuotaGuru(rec.guru, bulan)
+        const kuotaBaru = await tambahKuotaGuru(rec.guru, bulan)
         showToast(`ℹ️ Kuota ${rec.guru} ditambah +${KUOTA_TAMBAH} → ${kuotaBaru}/bulan`)
       }
     }
