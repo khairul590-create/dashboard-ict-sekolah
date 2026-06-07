@@ -147,7 +147,15 @@ export default function TempahanBilik() {
   const [syaratChecked, setSyaratChecked] = useState(Array(SYARAT_TEMPAHAN.length).fill(false))
 
   const [kuotaOverride, setKuotaOverride] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('guru_kuota_override') || '{}') } catch { return {} }
+    // Reset override lama (asas kuota dah naik 10→20). Clear sekali guna versi key.
+    try {
+      if (localStorage.getItem('guru_kuota_override_v') !== '2') {
+        localStorage.removeItem('guru_kuota_override')
+        localStorage.setItem('guru_kuota_override_v', '2')
+        return {}
+      }
+      return JSON.parse(localStorage.getItem('guru_kuota_override') || '{}')
+    } catch { return {} }
   })
 
   const [takwimList, setTakwimList] = useState([])
@@ -342,8 +350,8 @@ export default function TempahanBilik() {
       )
     : null
 
-  // Kuota 10 approved per guru per bulan (based on tarikh booking)
-  const KUOTA_BULAN = 10
+  // Kuota 20 approved per guru per bulan (based on tarikh booking)
+  const KUOTA_BULAN = 20
   const KUOTA_TAMBAH = 5
 
   function getKuotaGuru(guru, bulan) {
