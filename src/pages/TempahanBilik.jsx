@@ -154,6 +154,12 @@ export default function TempahanBilik() {
   const [takwimList, setTakwimList] = useState([])
   const [formTakwim, setFormTakwim] = useState({ tajuk: '', tarikh: TODAY, jenis: 'program', catatan: '' })
 
+  // Senarai guru dari Supabase (guru_tempahan). Sumber utk dropdown + panel urus guru.
+  const [guruTempahan, setGuruTempahan] = useState([])
+  const [formGuruBaru, setFormGuruBaru] = useState({ nama: '', no_telefon: '' })
+  const [guruExpand, setGuruExpand] = useState(null)   // id guru yang dibuka senarai tempahan
+  const [seeding, setSeeding] = useState(false)
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2800)
@@ -189,6 +195,45 @@ export default function TempahanBilik() {
     const { data } = await supabase.from('app_settings')
       .select('value').eq('key', 'kuota_override').maybeSingle()
     setKuotaOverride(data?.value ?? {})
+  }
+
+  async function fetchGuruTempahan() {
+    const { data } = await supabase.from('guru_tempahan').select('*').order('nama')
+    setGuruTempahan(data ?? [])
+  }
+
+  async function tambahGuruTempahan() {
+    const nama = formGuruBaru.nama.trim()
+    if (!nama) { showToast('Sila masukkan nama guru!', 'error'); return }
+    const wujud = guruTempahan.some(g => normNama(g.nama) === normNama(nama))
+    if (wujud) { showToast('⚠️ Guru ini sudah ada dalam senarai!', 'error'); return }
+    const { error } = await supabase.from('guru_tempahan')
+      .insert([{ nama, no_telefon: formGuruBaru.no_telefon.trim() || null }])
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    setFormGuruBaru({ nama: '', no_telefon: '' })
+    showToast('✅ Guru berjaya ditambah!')
+    fetchGuruTempahan()
+  }
+
+  async function padamGuruTempahan(id) {
+    const { error } = await supabase.from('guru_tempahan').delete().eq('id', id)
+    if (error) { showToast('Ralat: ' + error.message, 'error'); return }
+    showToast('🗑️ Guru dipadam (rekod tempahan dikekalkan).')
+    fetchGuruTempahan()
+  }
+
+  // Seed sekali dari senarai statik SENARAI_GURU (68 guru) bila table kosong.
+  async function seedGuruTempahan() {
+    if (guruTempahan.length) { showToast('Senarai guru sudah ada.', 'error'); return }
+    setSeeding(true)
+    try {
+      const rows = SENARAI_GURU.map(g => ({ nama: g.nama, no_telefon: null }))
+      const { error } = await supabase.from('guru_tempahan')
+        .upsert(rows, { onConflict: 'nama' })
+      if (error) { showToast('Ralat seed: ' + error.message, 'error'); return }
+      showToast(`✅ ${rows.length} guru diimport dari senarai sedia ada!`)
+      fetchGuruTempahan()
+    } finally { setSeeding(false) }
   }
 
   async function tambahTakwim() {
@@ -283,13 +328,14 @@ export default function TempahanBilik() {
   }
 
   useEffect(() => {
-    fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim(); fetchKuotaOverride()
+    fetchTempahan(); fetchBilik(); fetchBilikTutup(); fetchTakwim(); fetchKuotaOverride(); fetchGuruTempahan()
 
     const channel = supabase
       .channel('tempahan-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tempahan_bilik' }, fetchTempahan)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bilik_tutup' }, fetchBilikTutup)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, fetchKuotaOverride)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guru_tempahan' }, fetchGuruTempahan)
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -320,6 +366,10 @@ export default function TempahanBilik() {
     ? `${form.masa_mula}–${form.masa_tamat}` : null
 
   const normNama = s => s?.trim().toLowerCase()
+
+  // Sumber dropdown guru: utama dari table guru_tempahan; fallback ke senarai
+  // statik kalau table belum di-seed. Kedua-dua ada medan .nama.
+  const guruSource = guruTempahan.length ? guruTempahan : SENARAI_GURU
 
   // Hanya block bila ada approved — pending boleh mohon serentak
   const slotKonflik = masaRange && form.bilik && form.tarikh
@@ -834,7 +884,7 @@ export default function TempahanBilik() {
             />
             {showGuruDropdown && (
               <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).map(g => (
+                {guruSource.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).map(g => (
                   <button key={g.nama} type="button"
                     onMouseDown={() => {
                       setForm(p => ({ ...p, guru: g.nama }))
@@ -845,7 +895,7 @@ export default function TempahanBilik() {
                     {g.nama}
                   </button>
                 ))}
-                {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).length === 0 && (
+                {guruSource.filter(g => g.nama.toLowerCase().includes(searchGuru.toLowerCase())).length === 0 && (
                   <div className="px-4 py-3 text-xs text-gray-400 text-center">Tiada guru dijumpai</div>
                 )}
               </div>
@@ -1050,7 +1100,7 @@ export default function TempahanBilik() {
               />
               {showStatusDropdown && (
                 <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                  {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).map(g => (
+                  {guruSource.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).map(g => (
                     <button key={g.nama} type="button"
                       onMouseDown={() => {
                         setStatusCari(g.nama)
@@ -1061,7 +1111,7 @@ export default function TempahanBilik() {
                       {g.nama}
                     </button>
                   ))}
-                  {SENARAI_GURU.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).length === 0 && (
+                  {guruSource.filter(g => g.nama.toLowerCase().includes(statusCari.toLowerCase())).length === 0 && (
                     <div className="px-4 py-3 text-xs text-gray-400 text-center">Tiada guru dijumpai</div>
                   )}
                 </div>
@@ -1169,6 +1219,7 @@ export default function TempahanBilik() {
             {[
               { id: 'kelulusan', label: '⏳ Kelulusan', badge: pendingCount },
               { id: 'semua',     label: '📋 Semua' },
+              { id: 'guru',      label: '👨‍🏫 Urus Guru' },
               { id: 'penutupan', label: '🚫 Penutupan' },
               { id: 'bilik',     label: '🏫 Urus Bilik' },
             ].map(s => (
@@ -1280,6 +1331,147 @@ export default function TempahanBilik() {
           </div>
 
           )}
+
+          {adminSubTab === 'guru' && (() => {
+            const bulanIni = TODAY.slice(0, 7)
+            // Nama yang ada tempahan tapi tiada dalam senarai guru_tempahan
+            const namaDalamSenarai = new Set(guruTempahan.map(g => normNama(g.nama)))
+            const namaLuar = [...new Set(
+              tempahan.map(t => t.guru).filter(n => n && !namaDalamSenarai.has(normNama(n)))
+            )]
+            return (
+            <div className="neo-card p-5 space-y-4">
+              <SectionHeader icon="👨‍🏫" title="Urus Guru" color="text-violet-400" />
+
+              {/* Seed bila kosong */}
+              {guruTempahan.length === 0 && (
+                <div className="rounded-2xl p-4 space-y-3 bg-violet-50 border-2 border-violet-200">
+                  <div className="text-xs font-bold text-violet-700">Senarai guru masih kosong</div>
+                  <div className="text-xs text-violet-600">Import 68 guru dari senarai sedia ada untuk bermula.</div>
+                  <button onClick={seedGuruTempahan} disabled={seeding}
+                    className="w-full py-2.5 rounded-xl text-xs font-black neo-btn disabled:opacity-50"
+                    style={{ background: '#7C3AED', color: '#fff' }}>
+                    {seeding ? '⏳ Mengimport...' : '📥 Import Senarai Guru Sedia Ada'}
+                  </button>
+                </div>
+              )}
+
+              {/* Form tambah guru */}
+              <div className="rounded-2xl p-4 space-y-3" style={{ background: '#F5F3FF', border: '2px solid #111827' }}>
+                <div className="text-xs font-bold text-violet-500">➕ Tambah Guru Baru</div>
+                <input value={formGuruBaru.nama}
+                  onChange={e => setFormGuruBaru(f => ({ ...f, nama: e.target.value }))}
+                  placeholder="Nama penuh guru..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400" />
+                <input value={formGuruBaru.no_telefon}
+                  onChange={e => setFormGuruBaru(f => ({ ...f, no_telefon: e.target.value }))}
+                  placeholder="No. telefon (pilihan)..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400" />
+                <button onClick={tambahGuruTempahan}
+                  className="w-full py-2.5 rounded-xl text-xs font-black neo-btn"
+                  style={{ background: '#7C3AED', color: '#fff' }}>
+                  ➕ Tambah Guru
+                </button>
+              </div>
+
+              {/* Statistik ringkas */}
+              {guruTempahan.length > 0 && (
+                <div className="text-xs font-bold text-violet-400 px-1">
+                  {guruTempahan.length} guru berdaftar
+                </div>
+              )}
+
+              {/* Senarai guru */}
+              <div className="space-y-2.5">
+                {guruTempahan.map(g => {
+                  const tempahanGuru = tempahan.filter(t => normNama(t.guru) === normNama(g.nama))
+                  const jumlah   = tempahanGuru.length
+                  const approved = tempahanGuru.filter(t => t.status === 'approved').length
+                  const approvedBulan = tempahanGuru.filter(t =>
+                    t.status === 'approved' && t.tarikh.slice(0, 7) === bulanIni).length
+                  const kuota = getKuotaGuru(g.nama, bulanIni)
+                  const penuh = approvedBulan >= kuota
+                  const buka = guruExpand === g.id
+                  return (
+                    <div key={g.id} className="rounded-2xl overflow-hidden" style={{ border: '2px solid #111827' }}>
+                      <div className="p-3" style={{ background: '#FAF5FF' }}>
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">👨‍🏫</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-bold text-gray-900">{g.nama}</div>
+                            {g.no_telefon && <div className="text-xs text-gray-500 mt-0.5">📞 {g.no_telefon}</div>}
+                            <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                                📋 {jumlah} tempahan
+                              </span>
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                ✅ {approved} lulus
+                              </span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${penuh ? 'bg-red-100 text-red-700' : 'bg-violet-100 text-violet-700'}`}>
+                                🎫 {approvedBulan}/{kuota} bulan ini
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={() => tambahKuotaGuru(g.nama, bulanIni)}
+                            className="flex-1 px-2 py-2 rounded-xl text-xs font-bold neo-btn"
+                            style={{ background: '#EDE9FE', color: '#7C3AED' }}>
+                            ➕ Kuota +{KUOTA_TAMBAH}
+                          </button>
+                          <button onClick={() => setGuruExpand(buka ? null : g.id)}
+                            className="flex-1 px-2 py-2 rounded-xl text-xs font-bold neo-btn"
+                            style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                            {buka ? '▲ Tutup' : `▼ Tempahan (${jumlah})`}
+                          </button>
+                          <button onClick={() => {
+                            if (window.confirm(`Padam ${g.nama} dari senarai guru?\n\nRekod tempahan lama dikekalkan.`)) {
+                              padamGuruTempahan(g.id)
+                            }
+                          }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold neo-btn"
+                            style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Senarai tempahan guru */}
+                      {buka && (
+                        <div className="border-t-2 border-gray-100 bg-white p-3 space-y-2">
+                          {tempahanGuru.length === 0 ? (
+                            <div className="text-center text-xs text-gray-400 py-3">Tiada tempahan</div>
+                          ) : tempahanGuru.map(t => {
+                            const s = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending
+                            return (
+                              <div key={t.id} className="flex items-center gap-2.5 rounded-xl p-2.5 cursor-pointer"
+                                style={{ background: '#F8FAFC' }} onClick={() => setModal(t)}>
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-semibold text-gray-900 truncate">{t.bilik}</div>
+                                  <div className="text-xs text-gray-500 truncate">{t.tarikh} • {t.masa}</div>
+                                </div>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${s.badge}`}>{s.label}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Nama luar senarai (ada tempahan tapi bukan guru berdaftar) */}
+              {namaLuar.length > 0 && (
+                <div className="rounded-2xl p-3 bg-amber-50 border border-amber-200 space-y-1.5">
+                  <div className="text-xs font-bold text-amber-700">⚠️ {namaLuar.length} nama ada tempahan tapi bukan guru berdaftar:</div>
+                  <div className="text-xs text-amber-600">{namaLuar.join(', ')}</div>
+                </div>
+              )}
+            </div>
+            )
+          })()}
 
           {adminSubTab === 'penutupan' && (
           <div className="neo-card p-5 space-y-4">
