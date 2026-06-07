@@ -363,9 +363,13 @@ export default function TempahanBilik() {
     const key = `${normNama(guru)}|${bulan}`
     const extra = (kuotaOverride[key] ?? 0) + KUOTA_TAMBAH
     const newOverride = { ...kuotaOverride, [key]: extra }
-    setKuotaOverride(newOverride)
-    await supabase.from('app_settings')
+    const { error } = await supabase.from('app_settings')
       .upsert({ key: 'kuota_override', value: newOverride }, { onConflict: 'key' })
+    if (error) {
+      showToast('⚠️ Kuota tambahan gagal disimpan: ' + error.message, 'error')
+      return KUOTA_BULAN + (kuotaOverride[key] ?? 0)
+    }
+    setKuotaOverride(newOverride)
     return KUOTA_BULAN + extra
   }
 
